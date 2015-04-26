@@ -1,0 +1,4 @@
+*.hex
+/build/
+*.o
+/server/server
