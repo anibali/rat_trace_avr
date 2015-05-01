@@ -45,17 +45,18 @@ static void wifi_repeat_until_ok(const char *cmd) {
 }
 
 void wifi_wake() {
-  printf("Waking...\n");
+  printf("[WIFI] Waking...\n");
   wifi_enable();
 
   // Wait for reconnect
   wifi_repeat_until_ok("AT+CWJAP?\r\n");
 
-  printf("Reconnected.\n");
+  printf("[WIFI] Reconnected.\n");
 }
 
 void wifi_sleep() {
-  printf("Sleeping...\n");
+  // FIXME: Why does this debug message get mangled?
+  printf("[WIFI] Sleeping...\n");
   wifi_disable();
 }
 
@@ -67,7 +68,7 @@ void wifi_connect() {
   // FIXME: Read lines can be split if we are unlucky - need to buffer
   // lines here. That is, keep reading until we hit a \r\n.
 
-  printf("Connecting...\n");
+  printf("[WIFI] Connecting...\n");
 
   wifi_enable();
   _delay_ms(100);
@@ -94,13 +95,17 @@ void wifi_connect() {
   softserial_puts("AT+CIPMUX=0\r\n");
   _delay_ms(100);
   while(softserial_available()) softserial_getc();
+
+  printf("[WIFI] Connected.\n");
 }
 
 void wifi_send(const char *message) {
-  printf("Sending...\n");
+  printf("[WIFI] Sending...\n");
   softserial_puts("AT+CIPSTART=\"UDP\",\"192.168.0.6\",9252\r\n");
   _delay_ms(100);
-  softserial_puts("AT+CIPSEND=6\r\n");
+  char cipsend[32];
+  snprintf(cipsend, ARRAYSIZE(cipsend), "AT+CIPSEND=%d\r\n", strlen(message));
+  softserial_puts(cipsend);
   _delay_ms(100);
   while(softserial_available()) softserial_getc();
 

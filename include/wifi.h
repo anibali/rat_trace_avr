@@ -1,8 +1,6 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__
 
-#include <stdio.h>
-
 #define WIFI_SSID "NETGEAR12"
 #define WIFI_PASS "sillyrabbit129"
 

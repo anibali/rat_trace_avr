@@ -1,11 +1,7 @@
 #ifndef __UART_H__
 #define __UART_H__
 
-#include <stdint.h>
 #include <stdio.h>
-
-#include <avr/io.h>
-#include <util/delay.h>
 
 // http://www.appelsiini.net/2011/simple-usart-with-avr-libc
 

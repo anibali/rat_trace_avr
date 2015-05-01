@@ -111,7 +111,7 @@ ISR(PCINT0_vect) {
 void softserial_putc(char c) {
   tx_char = c;
   tx_start = 1;
-  while(tx_start || tx_busy) {}
+  while(tx_start || tx_busy);
 }
 
 // Transmit a null-terminated string using software serial (blocking)
