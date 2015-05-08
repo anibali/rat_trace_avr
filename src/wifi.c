@@ -7,6 +7,19 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
+static void print_response() {
+  char c;
+  printf("*** START RESPONSE ***\n");
+  while(!softserial_available());
+  _delay_ms(50);
+  while(softserial_available()) {
+    c = softserial_getc();
+    if(c != '\r') putchar(c);
+  }
+  if(c != '\n') putchar('\n');
+  printf("*** END RESPONSE ***\n");
+}
+
 void wifi_init() {
   softserial_init();
 
@@ -36,10 +49,13 @@ static void wifi_repeat_until_ok(const char *cmd) {
 
   while(1) {
     softserial_puts(cmd);
-    _delay_ms(100);
+    _delay_ms(200);
     response_len = softserial_getsn(response, ARRAYSIZE(response));
     if(ends_with(response, response_len, "OK\r\n", 4)) {
-      break;
+      // Flush junk
+      while(softserial_available()) softserial_getc();
+
+      return;
     }
   }
 }
@@ -75,7 +91,6 @@ void wifi_connect() {
 
   // Reset
   softserial_puts("AT+RST\r\n");
-  _delay_ms(100);
 
   // Flush junk
   while(softserial_available()) softserial_getc();
@@ -84,29 +99,28 @@ void wifi_connect() {
 
   softserial_puts("AT+CWMODE=1\r\n");
   _delay_ms(100);
-  while(softserial_available()) softserial_getc();
+  print_response();
 
   //softserial_puts("AT+CWJAP=\"TP-LINK\",\"anetworkpassword\"\r\n");
   softserial_printf("AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
-  while(!softserial_available());
-  _delay_ms(100);
+  print_response();
 
   wifi_repeat_until_ok("AT+CWJAP?\r\n");
 
   softserial_puts("AT+CIPMUX=0\r\n");
-  _delay_ms(100);
-  while(softserial_available()) softserial_getc();
+  print_response();
 
   printf("[WIFI] Connected.\n");
 }
 
 void wifi_send(const char *message) {
   printf("[WIFI] Sending...\n");
+
   softserial_printf("AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
-  _delay_ms(100);
+  print_response();
+
   softserial_printf("AT+CIPSEND=%d\r\n", strlen(message));
-  _delay_ms(100);
-  while(softserial_available()) softserial_getc();
+  print_response();
 
   // Message
   softserial_puts(message);
@@ -122,4 +136,6 @@ void wifi_send(const char *message) {
       pos = 0;
     }
   }
+
+  printf("[WIFI] Send complete\n");
 }

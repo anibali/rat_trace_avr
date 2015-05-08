@@ -72,9 +72,9 @@ int main() {
     } else {
       loop_count = 0;
 
-      if(breaks > 0) {
+      if(breaks < 15) {
         wifi_wake(); // Takes about 8 seconds
-        wifi_send("1234INTRUDER");
+        wifi_send("1234MISSING");
         wifi_sleep();
       }
 
