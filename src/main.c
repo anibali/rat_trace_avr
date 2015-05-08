@@ -7,6 +7,7 @@
 #include <avr/power.h>
 #include <avr/sleep.h>
 
+#include "util.h"
 #include "uart.h"
 #include "wifi.h"
 #include "adc.h"
@@ -43,6 +44,7 @@ void init() {
 
   wifi_init();
   wifi_connect();
+  wifi_send("0000STARTED");
 
   adc_init();
 
@@ -53,6 +55,7 @@ void init() {
 
 int main() {
   init();
+
   wifi_sleep();
 
   int loop_count = 0;

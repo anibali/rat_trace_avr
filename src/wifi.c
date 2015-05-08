@@ -86,11 +86,12 @@ void wifi_connect() {
   _delay_ms(100);
   while(softserial_available()) softserial_getc();
 
-  softserial_puts("AT+CWJAP=\"NETGEAR12\",\"sillyrabbit129\"\r\n");
+  //softserial_puts("AT+CWJAP=\"TP-LINK\",\"anetworkpassword\"\r\n");
+  softserial_printf("AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
   while(!softserial_available());
   _delay_ms(100);
 
-  wifi_repeat_until_ok("AT\r\n");
+  wifi_repeat_until_ok("AT+CWJAP?\r\n");
 
   softserial_puts("AT+CIPMUX=0\r\n");
   _delay_ms(100);
@@ -101,11 +102,9 @@ void wifi_connect() {
 
 void wifi_send(const char *message) {
   printf("[WIFI] Sending...\n");
-  softserial_puts("AT+CIPSTART=\"UDP\",\"192.168.0.6\",9252\r\n");
+  softserial_printf("AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
   _delay_ms(100);
-  char cipsend[32];
-  snprintf(cipsend, ARRAYSIZE(cipsend), "AT+CIPSEND=%d\r\n", strlen(message));
-  softserial_puts(cipsend);
+  softserial_printf("AT+CIPSEND=%d\r\n", strlen(message));
   _delay_ms(100);
   while(softserial_available()) softserial_getc();
 

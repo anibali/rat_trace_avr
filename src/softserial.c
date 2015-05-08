@@ -121,6 +121,20 @@ void softserial_puts(const char *str) {
   }
 }
 
+int softserial_printf(const char* format, ...) {
+  // NOTE: This imposes a limit on max message size
+  char buffer[128];
+
+  va_list arglist;
+  va_start(arglist, format);
+  int n_chars = vsnprintf(buffer, ARRAYSIZE(buffer), format, arglist);
+  va_end(arglist);
+
+  softserial_puts(buffer);
+
+  return n_chars;
+}
+
 int softserial_available() {
   if(rx_buffer_read_pos > rx_buffer_pos) {
     return (rx_buffer_len + rx_buffer_pos) - rx_buffer_read_pos;

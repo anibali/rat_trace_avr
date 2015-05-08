@@ -1,8 +1,10 @@
 #ifndef __WIFI_H__
 #define __WIFI_H__
 
-#define WIFI_SSID "NETGEAR12"
-#define WIFI_PASS "sillyrabbit129"
+#define WIFI_SSID       "TP-LINK"
+#define WIFI_PASS       "anetworkpassword"
+#define WIFI_DEST_IP    "192.168.1.2"
+#define WIFI_DEST_PORT  9252
 
 void wifi_init();
 void wifi_connect();
