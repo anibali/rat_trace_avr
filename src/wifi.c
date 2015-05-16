@@ -7,6 +7,8 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
+#define MEMCMP_CONST(ptr, const_str) memcmp(ptr, const_str, sizeof(const_str))
+
 static void print_response() {
   char c;
   printf("*** START RESPONSE ***\n");
@@ -35,65 +37,53 @@ void wifi_disable() {
   PORTB &= ~_BV(PORTB4);
 }
 
-static char ends_with(const char* str, int str_len, const char* suffix, int suffix_len) {
-  if(str_len >= suffix_len && memcmp(&str[str_len - suffix_len], suffix, suffix_len) == 0) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
 static void wifi_repeat_until_ok(const char *cmd) {
-  char response[32];
-  char response_len;
+  char line[32];
+  int line_len;
 
   while(1) {
     softserial_puts(cmd);
     _delay_ms(200);
-    response_len = softserial_getsn(response, ARRAYSIZE(response));
-    if(ends_with(response, response_len, "OK\r\n", 4)) {
-      // Flush junk
-      while(softserial_available()) softserial_getc();
-
-      return;
+    while(softserial_available()) {
+      line_len = softserial_readline(line, ARRAYSIZE(line));
+      if(MEMCMP_CONST(line, "OK\r\n") == 0) return;
     }
   }
 }
 
-void wifi_wake() {
-  printf("[WIFI] Waking...\n");
-  wifi_enable();
+bool wifi_is_connected() {
+  char line[32];
+  int line_len;
+  bool connected = false;
 
-  // Wait for reconnect
-  wifi_repeat_until_ok("AT+CWJAP?\r\n");
+  softserial_clear_buffer();
 
-  printf("[WIFI] Reconnected.\n");
-}
+  softserial_puts("AT+CWJAP?\r\n");
+  _delay_ms(200);
 
-void wifi_sleep() {
-  // FIXME: Why does this debug message get mangled?
-  printf("[WIFI] Sleeping...\n");
-  wifi_disable();
+  while(!connected && softserial_available()) {
+    line_len = softserial_readline(line, ARRAYSIZE(line));
+    connected = MEMCMP_CONST(line, "OK\r\n") == 0;
+  }
+
+  softserial_clear_buffer();
+
+  return connected;
 }
 
 void wifi_connect() {
   char response[256];
   char response_len;
 
-  // TODO: Just connect here
-  // FIXME: Read lines can be split if we are unlucky - need to buffer
-  // lines here. That is, keep reading until we hit a \r\n.
-
   printf("[WIFI] Connecting...\n");
 
   wifi_enable();
   _delay_ms(100);
 
-  // Reset
+  // Reset wireless
   softserial_puts("AT+RST\r\n");
-
-  // Flush junk
-  while(softserial_available()) softserial_getc();
+  _delay_ms(100);
+  softserial_clear_buffer();
 
   wifi_repeat_until_ok("AT\r\n");
 
@@ -101,7 +91,6 @@ void wifi_connect() {
   _delay_ms(100);
   print_response();
 
-  //softserial_puts("AT+CWJAP=\"TP-LINK\",\"anetworkpassword\"\r\n");
   softserial_printf("AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
   print_response();
 
@@ -113,6 +102,21 @@ void wifi_connect() {
   printf("[WIFI] Connected.\n");
 }
 
+static bool wifi_is_send_ok() {
+  char line[32];
+  int line_len;
+  bool send_ok = false;
+
+  while(!send_ok && softserial_available()) {
+    line_len = softserial_readline(line, ARRAYSIZE(line));
+    send_ok = MEMCMP_CONST(line, "SEND OK\r\n") == 0;
+  }
+
+  softserial_clear_buffer();
+
+  return send_ok;
+}
+
 void wifi_send(const char *message) {
   printf("[WIFI] Sending...\n");
 
@@ -122,20 +126,25 @@ void wifi_send(const char *message) {
   softserial_printf("AT+CIPSEND=%d\r\n", strlen(message));
   print_response();
 
-  // Message
+  softserial_clear_buffer();
+
   softserial_puts(message);
 
-  // TODO: Handle failure case. Timeout?
-  const char *success_response = "SEND OK\r\n";
-  int pos = 0;
-  while(pos < strlen(success_response)) {
-    char c = softserial_getc();
-    if(c == success_response[pos]) {
-      ++pos;
-    } else {
-      pos = 0;
+  // Wait for SEND OK (or timeout)
+  bool successful_send = false;
+  const int max_attempts = 20;
+  for(int i = 0; i < max_attempts; ++i) {
+    if(wifi_is_send_ok()) {
+      successful_send = true;
+      break;
     }
+    _delay_ms(200);
   }
 
-  printf("[WIFI] Send complete\n");
+  if(successful_send) {
+    printf("[WIFI] Send OK\n");
+  } else {
+    printf("[WIFI] Send failed\n");
+  }
+  _delay_ms(100); // Give debug message time to send
 }

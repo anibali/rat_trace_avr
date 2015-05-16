@@ -36,6 +36,7 @@ void sleep_now() {
 void init() {
   uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
+  _delay_ms(100); // Give debug message time to send
 
   // Enable interrupts
   sei();
@@ -56,13 +57,23 @@ void init() {
 int main() {
   init();
 
-  wifi_sleep();
+  wifi_disable();
+
+  bool msg_waiting = false;
 
   int loop_count = 0;
   int breaks = 0;
 
   while(1) {
     uint16_t ir_value = adc_read(0);
+
+    if(msg_waiting && wifi_is_connected()) {
+      msg_waiting = false;
+      // TODO: Reduce delay here by checking for successful send later
+      wifi_send("1234MISSING");
+      wifi_disable();
+    }
+
     if(ir_value > 200) {
       ++breaks;
     }
@@ -73,9 +84,12 @@ int main() {
       loop_count = 0;
 
       if(breaks < 15) {
-        wifi_wake(); // Takes about 8 seconds
-        wifi_send("1234MISSING");
-        wifi_sleep();
+        if(!msg_waiting) {
+          wifi_enable();
+          msg_waiting = true;
+          // Give GPIO time to change
+          _delay_ms(500);
+        }
       }
 
       breaks = 0;

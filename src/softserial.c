@@ -143,6 +143,10 @@ int softserial_available() {
   }
 }
 
+void softserial_clear_buffer() {
+  rx_buffer_read_pos = rx_buffer_pos;
+}
+
 char softserial_getc() {
   // Wait until there is something to read
   while(rx_buffer_read_pos == rx_buffer_pos);
@@ -150,6 +154,21 @@ char softserial_getc() {
   char c = rx_buffer[rx_buffer_read_pos];
   rx_buffer_read_pos = (rx_buffer_read_pos + 1) % rx_buffer_len;
   return c;
+}
+
+// TODO: This function is currently blocking. It would be wiser to use
+// some sort of timeout
+int softserial_readline(char *s, int n) {
+  int i;
+  char c = 0;
+
+  for(i = 0; i < n && c != '\n'; ++i) {
+    c = softserial_getc();
+    s[i] = c;
+  }
+  s[i] = '\0';
+
+  return i;
 }
 
 /**
