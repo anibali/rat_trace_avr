@@ -19,7 +19,8 @@ void sleep_init() {
 
   MCUSR &= ~_BV(WDRF);
   WDTCSR |= _BV(WDCE) | _BV(WDE);
-  WDTCSR = _BV(WDP2); // 0.25 secs
+  //WDTCSR = _BV(WDP2); // 0.25 secs
+  WDTCSR = _BV(WDP2) | _BV(WDP1); // 1.0 secs
   WDTCSR |= _BV(WDIE);
 }
 
@@ -50,40 +51,46 @@ void init() {
   adc_init();
 
   DDRD |= _BV(DDD2);
-  // Enable IR sensor
-  PORTD |= _BV(PORTD2);
+}
+
+uint16_t ir_read() {
+  /* Read from IR sensor */
+  PORTD |= _BV(PORTD2); // Enable IR sensor
+  _delay_ms(10);
+  uint16_t ir_value = adc_read(0);
+  PORTD &= ~_BV(PORTD2); // Disable IR sensor
+  _delay_ms(10);
+
+  return ir_value;
 }
 
 int main() {
   init();
 
+  wifi_wait_for_send();
   wifi_disable();
 
   bool msg_waiting = false;
-
-  int loop_count = 0;
-  int breaks = 0;
+  const uint8_t max_iterations = 16;
+  uint8_t iterations = 0;
+  uint16_t distance_sum = 0;
 
   while(1) {
-    uint16_t ir_value = adc_read(0);
+    bool do_send = msg_waiting && wifi_is_connected();
 
-    if(msg_waiting && wifi_is_connected()) {
+    if(do_send) {
       msg_waiting = false;
-      // TODO: Reduce delay here by checking for successful send later
       wifi_send("1234MISSING");
-      wifi_disable();
     }
 
-    if(ir_value > 200) {
-      ++breaks;
-    }
+    distance_sum += ir_read();
 
-    if(loop_count < 19) {
-      ++loop_count;
-    } else {
-      loop_count = 0;
+    ++iterations;
 
-      if(breaks < 15) {
+    if(iterations >= max_iterations) {
+      uint16_t distance_avg = distance_sum / iterations;
+
+      if(distance_avg < 350) {
         if(!msg_waiting) {
           wifi_enable();
           msg_waiting = true;
@@ -92,9 +99,18 @@ int main() {
         }
       }
 
-      breaks = 0;
+      iterations = 0;
+      distance_sum = 0;
     }
 
+    if(do_send) {
+      wifi_wait_for_send();
+      wifi_disable();
+      // Give GPIO time to change
+      _delay_ms(200);
+    }
+
+    /* Go to sleep */
     sleep_now();
   }
 

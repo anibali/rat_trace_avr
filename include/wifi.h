@@ -15,7 +15,8 @@
 
 void wifi_init();
 void wifi_connect();
-void wifi_send();
+void wifi_send(const char *message);
+bool wifi_wait_for_send();
 void wifi_enable();
 void wifi_disable();
 

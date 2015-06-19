@@ -129,7 +129,9 @@ void wifi_send(const char *message) {
   softserial_clear_buffer();
 
   softserial_puts(message);
+}
 
+bool wifi_wait_for_send() {
   // Wait for SEND OK (or timeout)
   bool successful_send = false;
   const int max_attempts = 20;
@@ -141,10 +143,5 @@ void wifi_send(const char *message) {
     _delay_ms(200);
   }
 
-  if(successful_send) {
-    printf("[WIFI] Send OK\n");
-  } else {
-    printf("[WIFI] Send failed\n");
-  }
-  _delay_ms(100); // Give debug message time to send
+  return successful_send;
 }
