@@ -12,6 +12,17 @@
 #include "wifi.h"
 #include "adc.h"
 
+// TODO: Proper structs for sending reports
+#pragma pack(push,1)
+typedef struct {
+  char identifier[4];
+  uint8_t protocol_version;
+  uint32_t trap_id;
+  uint32_t send_time;
+  uint8_t n_chunks;
+} Test_Report;
+#pragma pack(pop)
+
 ISR(WDT_vect) {}
 
 void sleep_init() {
@@ -80,7 +91,16 @@ int main() {
 
     if(do_send) {
       msg_waiting = false;
-      wifi_send("1234MISSING");
+
+      Test_Report report = {
+        "RATR",
+        1,
+        42,
+        100,
+        0
+      };
+
+      wifi_sendn(&report, sizeof(report));
     }
 
     distance_sum += ir_read();

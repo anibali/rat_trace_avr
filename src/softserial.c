@@ -162,7 +162,7 @@ int softserial_readline(char *s, int n) {
   int i;
   char c = 0;
 
-  for(i = 0; i < n && c != '\n'; ++i) {
+  for(i = 0; i < (n - 1) && c != '\n'; ++i) {
     c = softserial_getc();
     s[i] = c;
   }

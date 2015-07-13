@@ -117,18 +117,25 @@ static bool wifi_is_send_ok() {
   return send_ok;
 }
 
-void wifi_send(const char *message) {
+void wifi_sendn(const void *message, int message_len) {
   printf("[WIFI] Sending...\n");
 
   softserial_printf("AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
   print_response();
 
-  softserial_printf("AT+CIPSEND=%d\r\n", strlen(message));
+  softserial_printf("AT+CIPSEND=%d\r\n", message_len);
   print_response();
 
   softserial_clear_buffer();
 
-  softserial_puts(message);
+  const char *message_chars = message;
+  for(int i = 0; i < message_len; ++i) {
+    softserial_putc(message_chars[i]);
+  }
+}
+
+void wifi_send(const char *message) {
+  wifi_sendn(message, strlen(message));
 }
 
 bool wifi_wait_for_send() {
