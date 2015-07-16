@@ -57,11 +57,18 @@ void init() {
 
   wifi_init();
   wifi_connect();
-  wifi_send("0000STARTED");
+  //wifi_send("0000STARTED");
+
+  Wifi_Error error;
+  uint32_t time_val = wifi_request_time(&error);
+  printf("Time val: %lu, Error: %d\n", time_val, error);
 
   adc_init();
 
   DDRD |= _BV(DDD2);
+
+  //wifi_wait_for_send();
+  wifi_disable();
 }
 
 uint16_t ir_read() {
@@ -77,9 +84,6 @@ uint16_t ir_read() {
 
 int main() {
   init();
-
-  wifi_wait_for_send();
-  wifi_disable();
 
   bool msg_waiting = false;
   const uint8_t max_iterations = 16;
@@ -109,13 +113,12 @@ int main() {
 
     if(iterations >= max_iterations) {
       uint16_t distance_avg = distance_sum / iterations;
+      printf("Avg distance: %u\n", distance_avg);
 
-      if(distance_avg < 350) {
+      if(distance_avg < 300) {
         if(!msg_waiting) {
           wifi_enable();
           msg_waiting = true;
-          // Give GPIO time to change
-          _delay_ms(500);
         }
       }
 
@@ -126,11 +129,11 @@ int main() {
     if(do_send) {
       wifi_wait_for_send();
       wifi_disable();
-      // Give GPIO time to change
-      _delay_ms(200);
     }
 
-    /* Go to sleep */
+    // Give GPIOs time to change, etc
+    _delay_ms(500);
+    // Sleep
     sleep_now();
   }
 

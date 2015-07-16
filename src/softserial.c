@@ -17,7 +17,7 @@ static char tx_char;
 
 static char rx_count;
 static char rx_char;
-#define rx_buffer_len 256
+#define rx_buffer_len 512
 static char rx_buffer[rx_buffer_len];
 static volatile int rx_buffer_pos = 0;
 static int rx_buffer_read_pos = 0;
@@ -89,13 +89,10 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 ISR(PCINT0_vect) {
-  // Note: If using multiple PCINT interrupts we need to store/compare prev
+  // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
   if((PINB & _BV(PINB0)) == 0) { // Falling edge
-    // TODO: Start timer for 1/2 period of UART, sample on even counts (start
-    // at 0, first read is start bit). Disable this interrupt in the meantime
-
     // Disable this interrupt
     PCMSK0 &= ~_BV(PCINT0);
 
@@ -154,6 +151,20 @@ char softserial_getc() {
   char c = rx_buffer[rx_buffer_read_pos];
   rx_buffer_read_pos = (rx_buffer_read_pos + 1) % rx_buffer_len;
   return c;
+}
+
+bool softserial_getc_timeout(char *c, const int timeout_ms) {
+  for(int i = 0; i < timeout_ms / 10; ++i) {
+    if(rx_buffer_read_pos == rx_buffer_pos) {
+      _delay_ms(10);
+    } else {
+      *c = rx_buffer[rx_buffer_read_pos];
+      rx_buffer_read_pos = (rx_buffer_read_pos + 1) % rx_buffer_len;
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // TODO: This function is currently blocking. It would be wiser to use

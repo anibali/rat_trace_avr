@@ -3,6 +3,7 @@
 #include "util.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <avr/io.h>
 #include <util/delay.h>
@@ -102,21 +103,6 @@ void wifi_connect() {
   printf("[WIFI] Connected.\n");
 }
 
-static bool wifi_is_send_ok() {
-  char line[32];
-  int line_len;
-  bool send_ok = false;
-
-  while(!send_ok && softserial_available()) {
-    line_len = softserial_readline(line, ARRAYSIZE(line));
-    send_ok = MEMCMP_CONST(line, "SEND OK\r\n") == 0;
-  }
-
-  softserial_clear_buffer();
-
-  return send_ok;
-}
-
 void wifi_sendn(const void *message, int message_len) {
   printf("[WIFI] Sending...\n");
 
@@ -138,6 +124,18 @@ void wifi_send(const char *message) {
   wifi_sendn(message, strlen(message));
 }
 
+static bool wifi_is_send_ok() {
+  char line[32];
+  bool send_ok = false;
+
+  while(!send_ok && softserial_available()) {
+    softserial_readline(line, ARRAYSIZE(line));
+    send_ok = (MEMCMP_CONST(line, "SEND OK\r\n") == 0);
+  }
+
+  return send_ok;
+}
+
 bool wifi_wait_for_send() {
   // Wait for SEND OK (or timeout)
   bool successful_send = false;
@@ -150,5 +148,132 @@ bool wifi_wait_for_send() {
     _delay_ms(200);
   }
 
+  //softserial_clear_buffer();
+
   return successful_send;
 }
+
+uint32_t wifi_request_time(Wifi_Error *error) {
+  const int char_timeout_ms = 500;
+
+  wifi_send("TIME");
+  _delay_ms(1000);
+
+  // "Received data" marker
+  const char* marker = "\n+IPD,";
+  int marker_pos = 1;
+
+  // Wait for response
+  while(marker_pos < strlen(marker)) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+      return 0;
+    }
+    if(c == marker[marker_pos]) {
+      ++marker_pos;
+    } else {
+      marker_pos = 0;
+    }
+  }
+
+  char response_len_str[16];
+
+  for(int i = 0; true; ++i) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+      return 0;
+    }
+    if(c >= '0' && c <= '9') {
+      response_len_str[i] = c;
+    } else if(c == ':') {
+      response_len_str[i] = '\0';
+      break;
+    } else {
+      if(error != NULL) *error = Wifi_Error_Unknown;
+      return 0;
+    }
+  }
+
+  int response_len = atoi(response_len_str);
+
+  char response[64];
+
+  if(response_len > ARRAYSIZE(response) - 1) {
+    if(error != NULL) *error = Wifi_Error_Buffer_Size;
+    return 0;
+  }
+
+  for(int i = 0; i < response_len; ++i) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+      return 0;
+    }
+    response[i] = c;
+  }
+
+  response[response_len] = '\0';
+
+  uint32_t time_val = strtoul(response, NULL, 10);
+
+  softserial_clear_buffer();
+
+  // Will error if remote closed connection already, that's fine
+  softserial_printf("AT+CIPCLOSE\r\n");
+  _delay_ms(100);
+  print_response();
+
+  if(error != NULL) *error = Wifi_Error_None;
+  return time_val;
+}
+
+#if 0
+void wifi_test_tcp() {
+  printf("[WIFI] Test...\n");
+
+  softserial_printf("AT+CIPSTART=\"TCP\",\"%s\",%d\r\n", "173.254.30.60", 80);
+  _delay_ms(1000);
+  print_response();
+
+  const char *http = "GET /Test.txt HTTP/1.0\r\n\r\nHost: thearduinoguy.org\r\n\r\n";
+
+  softserial_printf("AT+CIPSEND=%d\r\n", strlen(http));
+  print_response();
+
+  softserial_clear_buffer();
+  softserial_printf(http);
+
+  _delay_ms(1000);
+
+  char line_buf[128];
+  int content_length = -1;
+
+  while(softserial_available()) {
+    softserial_readline(line_buf, ARRAYSIZE(line_buf));
+
+    if(memcmp(line_buf, "Content-Length: ", 16) == 0) {
+      content_length = atoi(&line_buf[16]);
+    } else if(content_length >= 0 && line_buf[0] == '\r') {
+      break;
+    }
+  }
+
+  // TODO: Protect against overflow
+  char content[128];
+  for(int i = 0; i < content_length; ++i) {
+    content[i] = softserial_getc();
+  }
+  content[content_length] = '\0';
+
+  printf("CONTENT: %s\n", content);
+
+  softserial_clear_buffer();
+
+  // Will error if remote closed connection already, that's fine
+  softserial_printf("AT+CIPCLOSE\r\n");
+  _delay_ms(100);
+  print_response();
+}
+#endif
