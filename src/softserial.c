@@ -1,12 +1,13 @@
 #include "softserial.h"
 
-#include "util.h"
-
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
 #include <stdio.h>
+
+#include "util.h"
+#include "pin.h"
 
 #define SOFTSERIAL_BAUD 9600
 
@@ -56,12 +57,7 @@ ISR(TIMER1_COMPA_vect) {
     break;
   }
 
-  // Write to TX digital output
-  if(output != 0) {
-    PORTB |= _BV(PORTB5);
-  } else {
-    PORTB &= ~_BV(PORTB5);
-  }
+  pin_digital_write(Pin_Softserial_TX, output == 0 ? Logic_Low : Logic_High);
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -79,7 +75,7 @@ ISR(TIMER0_COMPA_vect) {
       // Enable external RX interrupt
       PCMSK0 |= _BV(PCINT0);
     } else { // Data bit
-      if(PINB & _BV(PINB0)) {
+      if(pin_digital_read(Pin_Softserial_RX) == Logic_High) {
         rx_char |= _BV(rx_bit - 1);
       }
     }
@@ -92,7 +88,7 @@ ISR(PCINT0_vect) {
   // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
-  if((PINB & _BV(PINB0)) == 0) { // Falling edge
+  if(pin_digital_read(Pin_Softserial_RX) == Logic_Low) { // Falling edge
     // Disable this interrupt
     PCMSK0 &= ~_BV(PCINT0);
 
@@ -209,7 +205,7 @@ void softserial_dump() {
 void softserial_init() {
   //// TX
 
-  DDRB |= _BV(DDB5); // Set as output
+  pin_set_direction(Pin_Softserial_TX, Direction_Output);
 
   // Prescale of 8, clear count on compare match
   TCCR1A = 0;
@@ -221,8 +217,8 @@ void softserial_init() {
 
   //// RX
 
-  DDRB &= ~_BV(DDB0); // Set as input
-  PORTB |= _BV(PORTB0); // Enable pull-up
+  pin_set_direction(Pin_Softserial_RX, Direction_Input);
+  pin_digital_write(Pin_Softserial_RX, Logic_High); // Enable pull-up
   PCICR |= _BV(PCIE0);
   PCMSK0 |= _BV(PCINT0);
 

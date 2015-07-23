@@ -11,6 +11,7 @@
 #include "uart.h"
 #include "wifi.h"
 #include "adc.h"
+#include "pin.h"
 
 // TODO: Proper structs for sending reports
 #pragma pack(push,1)
@@ -46,6 +47,8 @@ void sleep_now() {
 }
 
 void init() {
+  pin_init();
+
   uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
   _delay_ms(100); // Give debug message time to send
@@ -57,7 +60,6 @@ void init() {
 
   wifi_init();
   wifi_connect();
-  //wifi_send("0000STARTED");
 
   Wifi_Error error;
   uint32_t time_val = wifi_request_time(&error);
@@ -65,19 +67,18 @@ void init() {
 
   adc_init();
 
-  DDRD |= _BV(DDD2);
+  pin_set_direction(Pin_IR_Enable, Direction_Output);
 
-  //wifi_wait_for_send();
   wifi_disable();
 }
 
 uint16_t ir_read() {
   /* Read from IR sensor */
-  PORTD |= _BV(PORTD2); // Enable IR sensor
-  _delay_ms(10);
+  pin_digital_write(Pin_IR_Enable, Logic_High);
+  _delay_ms(50);
   uint16_t ir_value = adc_read(0);
-  PORTD &= ~_BV(PORTD2); // Disable IR sensor
-  _delay_ms(10);
+  pin_digital_write(Pin_IR_Enable, Logic_Low);
+  _delay_ms(50);
 
   return ir_value;
 }
