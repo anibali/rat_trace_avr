@@ -4,67 +4,76 @@
 
 typedef struct {
   uint8_t port_addr;
-  uint8_t port_bv;
   uint8_t ddr_addr;
-  uint8_t ddr_bv;
   uint8_t pin_addr;
-  uint8_t pin_bv;
+} Port_Info;
+
+typedef struct {
+  Port_Info *port_info;
+  uint8_t bv;
 } Pin_Info;
 
-Pin_Info pins[Number_Of_Pins];
+typedef enum {
+  Port_A = 0,
+  Port_B,
+  Port_C,
+  Port_D
+} Port;
 
-void pin_init() {
-  pins[Pin_Status_LED].port_addr = _SFR_IO_ADDR(PORTB);
-  pins[Pin_Status_LED].port_bv = _BV(PORTB5);
-  pins[Pin_Status_LED].ddr_addr = _SFR_IO_ADDR(DDRB);
-  pins[Pin_Status_LED].ddr_bv = _BV(DDB5);
-  pins[Pin_Status_LED].pin_addr = _SFR_IO_ADDR(PINB);
-  pins[Pin_Status_LED].pin_bv = _BV(PINB5);
+static Port_Info port_infos[] = {
+  {0},
+  {
+    .port_addr  = _SFR_IO_ADDR(PORTB),
+    .ddr_addr   = _SFR_IO_ADDR(DDRB),
+    .pin_addr   = _SFR_IO_ADDR(PINB),
+  },
+  {
+    .port_addr  = _SFR_IO_ADDR(PORTC),
+    .ddr_addr   = _SFR_IO_ADDR(DDRC),
+    .pin_addr   = _SFR_IO_ADDR(PINC),
+  },
+  {
+    .port_addr  = _SFR_IO_ADDR(PORTD),
+    .ddr_addr   = _SFR_IO_ADDR(DDRD),
+    .pin_addr   = _SFR_IO_ADDR(PIND),
+  }
+};
 
-  pins[Pin_IR_Enable].port_addr = _SFR_IO_ADDR(PORTD);
-  pins[Pin_IR_Enable].port_bv = _BV(PORTD2);
-  pins[Pin_IR_Enable].ddr_addr = _SFR_IO_ADDR(DDRD);
-  pins[Pin_IR_Enable].ddr_bv = _BV(DDD2);
-  pins[Pin_IR_Enable].pin_addr = _SFR_IO_ADDR(PIND);
-  pins[Pin_IR_Enable].pin_bv = _BV(PIND2);
+static Pin_Info pins[Number_Of_Pins];
 
-  pins[Pin_Softserial_TX].port_addr = _SFR_IO_ADDR(PORTB);
-  pins[Pin_Softserial_TX].port_bv = _BV(PORTB5);
-  pins[Pin_Softserial_TX].ddr_addr = _SFR_IO_ADDR(DDRB);
-  pins[Pin_Softserial_TX].ddr_bv = _BV(DDB5);
-  pins[Pin_Softserial_TX].pin_addr = _SFR_IO_ADDR(PINB);
-  pins[Pin_Softserial_TX].pin_bv = _BV(PINB5);
+#define REGISTER_PIN(name, port, pin_num) \
+  ({pins[(name)].port_info = &port_infos[(port)]; \
+    pins[(name)].bv = _BV(pin_num);})
 
-  pins[Pin_Softserial_RX].port_addr = _SFR_IO_ADDR(PORTB);
-  pins[Pin_Softserial_RX].port_bv = _BV(PORTB0);
-  pins[Pin_Softserial_RX].ddr_addr = _SFR_IO_ADDR(DDRB);
-  pins[Pin_Softserial_RX].ddr_bv = _BV(DDB0);
-  pins[Pin_Softserial_RX].pin_addr = _SFR_IO_ADDR(PINB);
-  pins[Pin_Softserial_RX].pin_bv = _BV(PINB0);
+void pin_register_all() {
+  REGISTER_PIN(Pin_Status_LED,    Port_B, 5);
+  REGISTER_PIN(Pin_IR_Enable,     Port_D, 2);
+  REGISTER_PIN(Pin_Softserial_TX, Port_B, 1);
+  REGISTER_PIN(Pin_Softserial_RX, Port_B, 0);
 }
 
 void pin_set_direction(Pin pin, Pin_Direction direction) {
   if(direction == Direction_Input) {
-    _SFR_IO8(pins[pin].ddr_addr) &= ~pins[pin].ddr_bv;
+    _SFR_IO8(pins[pin].port_info->ddr_addr) &= ~pins[pin].bv;
   } else {
-    _SFR_IO8(pins[pin].ddr_addr) |= pins[pin].ddr_bv;
+    _SFR_IO8(pins[pin].port_info->ddr_addr) |= pins[pin].bv;
   }
 }
 
 void pin_digital_write(Pin pin, Logic_Level value) {
   if(value == Logic_Low) {
-    _SFR_IO8(pins[pin].port_addr) &= ~pins[pin].port_bv;
+    _SFR_IO8(pins[pin].port_info->port_addr) &= ~pins[pin].bv;
   } else {
-    _SFR_IO8(pins[pin].port_addr) |= pins[pin].port_bv;
+    _SFR_IO8(pins[pin].port_info->port_addr) |= pins[pin].bv;
   }
 }
 
 void pin_digital_toggle(Pin pin) {
-  _SFR_IO8(pins[pin].port_addr) ^= pins[pin].port_bv;
+  _SFR_IO8(pins[pin].port_info->port_addr) ^= pins[pin].bv;
 }
 
 Logic_Level pin_digital_read(Pin pin) {
-  if(_SFR_IO8(pins[pin].pin_addr) & pins[pin].pin_bv)
+  if(_SFR_IO8(pins[pin].port_info->pin_addr) & pins[pin].bv)
     return Logic_High;
   else
     return Logic_Low;

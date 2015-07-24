@@ -20,7 +20,7 @@ typedef enum {
   Number_Of_Pins
 } Pin;
 
-void pin_init();
+void pin_register_all();
 
 void pin_set_direction(Pin pin, Pin_Direction direction);
 

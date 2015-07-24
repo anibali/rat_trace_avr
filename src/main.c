@@ -47,7 +47,7 @@ void sleep_now() {
 }
 
 void init() {
-  pin_init();
+  pin_register_all();
 
   uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);

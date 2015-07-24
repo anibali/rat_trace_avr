@@ -13,7 +13,7 @@ typedef enum {
 
 #define WIFI_SSID       "NETGEAR12"
 #define WIFI_PASS       "sillyrabbit129"
-#define WIFI_DEST_IP    "192.168.0.8"
+#define WIFI_DEST_IP    "192.168.0.11"
 #define WIFI_DEST_PORT  9252
 
 //#define WIFI_SSID       "TP-LINK"
