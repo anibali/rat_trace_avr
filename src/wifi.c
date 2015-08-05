@@ -153,6 +153,127 @@ bool wifi_wait_for_send() {
   return successful_send;
 }
 
+// NOTE: Big-endian
+typedef struct {
+  uint8_t li :2;
+  uint8_t version :3;
+  uint8_t mode :3;
+  uint8_t stratum;
+  uint8_t poll;
+  uint8_t precision;
+  uint32_t root_delay;
+  uint32_t root_dispersion;
+  uint32_t reference_id;
+  uint32_t reference_time;
+  uint32_t reference_time_frac;
+  uint32_t origin_time;
+  uint32_t origin_time_frac;
+  uint32_t receive_time;
+  uint32_t receive_time_frac;
+  uint32_t transmit_time;
+  uint32_t transmit_time_frac;
+} NTP_Packet;
+
+uint32_t swap_endian(uint32_t val) {
+  return
+    ((val & 0xFF      ) << 24 ) |
+    ((val & 0xFF00    ) << 8  ) |
+    ((val & 0xFF0000  ) >> 8  ) |
+    ((val & 0xFF000000) >> 24 );
+}
+
+void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
+  const int char_timeout_ms = 500;
+
+  NTP_Packet packet = {0};
+  packet.li = 3;
+  packet.version = 4;
+  packet.mode = 3;
+  // TODO: More here...
+
+  printf("[WIFI] Sending NTP request...\n");
+
+  // TODO: Move definition of NTP server IP elsewhere
+  softserial_printf("AT+CIPSTART=\"UDP\",\"129.250.35.250\",123\r\n");
+  _delay_ms(1000);
+  print_response();
+
+  softserial_printf("AT+CIPSEND=%d\r\n", sizeof(NTP_Packet));
+  print_response();
+
+  softserial_clear_buffer();
+
+  const char *message_chars = (char*)&packet;
+  for(int i = 0; i < sizeof(NTP_Packet); ++i) {
+    softserial_putc(message_chars[i]);
+  }
+
+  _delay_ms(1000);
+
+  // "Received data" marker
+  const char* marker = "\n+IPD,";
+  int marker_pos = 1;
+
+  // Wait for response
+  while(marker_pos < strlen(marker)) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+    }
+    if(c == marker[marker_pos]) {
+      ++marker_pos;
+    } else {
+      marker_pos = 0;
+    }
+  }
+
+  char response_len_str[16];
+
+  for(int i = 0; true; ++i) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+    }
+    if(c >= '0' && c <= '9') {
+      response_len_str[i] = c;
+    } else if(c == ':') {
+      response_len_str[i] = '\0';
+      break;
+    } else {
+      if(error != NULL) *error = Wifi_Error_Unknown;
+    }
+  }
+
+  int response_len = atoi(response_len_str);
+
+  if(response_len != sizeof(NTP_Packet)) {
+    if(error != NULL) *error = Wifi_Error_Unknown;
+  }
+
+  char* packet_bytes = (char*)&packet;
+  for(int i = 0; i < response_len; ++i) {
+    char c;
+    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+      if(error != NULL) *error = Wifi_Error_Timeout;
+    }
+    packet_bytes[i] = c;
+  }
+
+  softserial_clear_buffer();
+
+  // Will error if remote closed connection already, that's fine
+  softserial_printf("AT+CIPCLOSE\r\n");
+  _delay_ms(100);
+  print_response();
+
+  // TODO: Use other data in some way
+  *time_val = swap_endian(packet.transmit_time);
+  *time_val -= 3155673600ul; // Y2K time
+
+  if(error != NULL) *error = Wifi_Error_None;
+}
+
+#if 0
 uint32_t wifi_request_time(Wifi_Error *error) {
   const int char_timeout_ms = 500;
 
@@ -229,7 +350,6 @@ uint32_t wifi_request_time(Wifi_Error *error) {
   return time_val;
 }
 
-#if 0
 void wifi_test_tcp() {
   printf("[WIFI] Test...\n");
 

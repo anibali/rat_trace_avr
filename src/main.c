@@ -65,7 +65,8 @@ void init() {
   wifi_connect();
 
   Wifi_Error error;
-  uint32_t time_val = wifi_request_time(&error);
+  uint32_t time_val;
+  wifi_request_ntp(&time_val, &error);
   printf("Time val: %lu, Error: %d\n", time_val, error);
 
   adc_init();

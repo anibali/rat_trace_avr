@@ -13,7 +13,7 @@ typedef enum {
 
 #define WIFI_SSID       "NETGEAR12"
 #define WIFI_PASS       "sillyrabbit129"
-#define WIFI_DEST_IP    "192.168.0.11"
+#define WIFI_DEST_IP    "192.168.0.12"
 #define WIFI_DEST_PORT  9252
 
 //#define WIFI_SSID       "TP-LINK"
@@ -31,6 +31,7 @@ void wifi_disable();
 
 bool wifi_is_connected();
 
+void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error);
 uint32_t wifi_request_time(Wifi_Error *error);
 
 #endif
