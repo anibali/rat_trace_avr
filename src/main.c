@@ -49,6 +49,9 @@ void sleep_now() {
 void init() {
   pin_register_all();
 
+  pin_set_direction(Pin_IR_Enable, Direction_Output);
+  pin_set_direction(Pin_Status_LED, Direction_Output);
+
   uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
   _delay_ms(100); // Give debug message time to send
@@ -66,8 +69,6 @@ void init() {
   printf("Time val: %lu, Error: %d\n", time_val, error);
 
   adc_init();
-
-  pin_set_direction(Pin_IR_Enable, Direction_Output);
 
   wifi_disable();
 }
@@ -119,6 +120,7 @@ int main() {
       if(distance_avg < 300) {
         if(!msg_waiting) {
           wifi_enable();
+          pin_digital_write(Pin_Status_LED, Logic_High);
           msg_waiting = true;
         }
       }
@@ -129,6 +131,7 @@ int main() {
 
     if(do_send) {
       wifi_wait_for_send();
+      pin_digital_write(Pin_Status_LED, Logic_Low);
       wifi_disable();
     }
 
