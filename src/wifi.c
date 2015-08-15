@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "softserial.h"
 #include "util.h"
+#include "pin.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,15 +28,15 @@ void wifi_init() {
   softserial_init();
 
   // Set direction of PORTB, pin 4 to output (Wireless enable)
-  DDRB |= _BV(DDB4);
+  DDRC |= _BV(DDC3);
 }
 
 void wifi_enable() {
-  PORTB |= _BV(PORTB4);
+  PORTC |= _BV(PORTC3);
 }
 
 void wifi_disable() {
-  PORTB &= ~_BV(PORTB4);
+  PORTC &= ~_BV(PORTC3);
 }
 
 static void wifi_repeat_until_ok(const char *cmd) {
@@ -45,6 +46,7 @@ static void wifi_repeat_until_ok(const char *cmd) {
   while(1) {
     softserial_puts(cmd);
     _delay_ms(200);
+
     while(softserial_available()) {
       line_len = softserial_readline(line, ARRAYSIZE(line));
       if(MEMCMP_CONST(line, "OK\r\n") == 0) return;

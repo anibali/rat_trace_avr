@@ -49,8 +49,11 @@ void sleep_now() {
 void init() {
   pin_register_all();
 
+  pin_set_direction(Pin_Debug_Out, Direction_Output);
+
   pin_set_direction(Pin_IR_Enable, Direction_Output);
   pin_set_direction(Pin_Status_LED, Direction_Output);
+  pin_digital_write(Pin_Status_LED, Logic_High);
 
   uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
@@ -62,7 +65,10 @@ void init() {
   sleep_init();
 
   wifi_init();
+
   wifi_connect();
+
+  pin_digital_write(Pin_Status_LED, Logic_Low);
 
   Wifi_Error error;
   uint32_t time_val;
@@ -121,7 +127,6 @@ int main() {
       if(distance_avg < 300) {
         if(!msg_waiting) {
           wifi_enable();
-          pin_digital_write(Pin_Status_LED, Logic_High);
           msg_waiting = true;
         }
       }
@@ -132,7 +137,6 @@ int main() {
 
     if(do_send) {
       wifi_wait_for_send();
-      pin_digital_write(Pin_Status_LED, Logic_Low);
       wifi_disable();
     }
 

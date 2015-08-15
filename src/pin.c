@@ -51,10 +51,12 @@ static Pin_Info pins[Number_Of_Pins];
     pins[(name)].bv = _BV(pin_num);})
 
 void pin_register_all() {
-  REGISTER_PIN(Pin_Status_LED,    Port_B, 5);
+  REGISTER_PIN(Pin_Status_LED,    Port_B, 1);
   REGISTER_PIN(Pin_IR_Enable,     Port_D, 2);
-  REGISTER_PIN(Pin_Softserial_TX, Port_B, 1);
-  REGISTER_PIN(Pin_Softserial_RX, Port_B, 0);
+  REGISTER_PIN(Pin_Softserial_TX, Port_C, 0);
+  REGISTER_PIN(Pin_Softserial_RX, Port_C, 1);
+
+  REGISTER_PIN(Pin_Debug_Out, Port_C, 5);
 
   // TODO: Check whether enabling more bits in PCICR than needed wastes power
   PCICR |= _BV(PCIE0) | _BV(PCIE1) | _BV(PCIE2);

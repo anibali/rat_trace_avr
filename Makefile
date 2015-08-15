@@ -1,7 +1,7 @@
 CC = avr-gcc
-CFLAGS = -Os -std=c99 -DF_CPU=16000000UL -mmcu=atmega328p
+CFLAGS = -Os -std=c99 -DF_CPU=8000000UL -mmcu=atmega328p
 CXX = avr-g++
-CXXFLAGS = -Os -DF_CPU=16000000UL -mmcu=atmega328p
+CXXFLAGS = -Os -DF_CPU=8000000UL -mmcu=atmega328p
 OBJDIR = build
 SRCDIR = src
 INCLUDEDIR = include
@@ -22,7 +22,7 @@ main: $(OBJS) $(OBJDIR)/main.o
 	avr-objcopy -O ihex -R .eeprom $(OBJDIR)/$(BINNAME) $(BINNAME).hex
 
 upload:
-	avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:$(BINNAME).hex
+	avrdude -F -V -c usbasp -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:$(BINNAME).hex
 
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -I$(INCLUDEDIR) -c -o $@ $<

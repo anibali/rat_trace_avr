@@ -65,8 +65,10 @@ ISR(TIMER0_COMPA_vect) {
     char rx_bit = rx_count / 2;
 
     if(rx_bit == 0) { // Start bit
+      pin_digital_toggle(Pin_Debug_Out);
       rx_char = 0;
     } else if(rx_bit == 9) { // Stop bit
+      pin_digital_toggle(Pin_Debug_Out);
       rx_buffer[rx_buffer_pos] = rx_char;
       rx_buffer_pos = (rx_buffer_pos + 1) % rx_buffer_len;
 
@@ -75,6 +77,7 @@ ISR(TIMER0_COMPA_vect) {
       // Enable external RX interrupt
       pin_enable_interrupt(Pin_Softserial_RX);
     } else { // Data bit
+      //pin_digital_toggle(Pin_Debug_Out);
       if(pin_digital_read(Pin_Softserial_RX) == Logic_High) {
         rx_char |= _BV(rx_bit - 1);
       }
@@ -84,7 +87,7 @@ ISR(TIMER0_COMPA_vect) {
   ++rx_count;
 }
 
-ISR(PCINT0_vect) {
+ISR(PCINT1_vect) {
   // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
@@ -225,5 +228,6 @@ void softserial_init() {
   TCCR0A = _BV(WGM01);
   TCCR0B = _BV(CS01);
   // Set compare value corresponding to double baud rate
-  OCR0A = F_CPU / (8UL * 2 * SOFTSERIAL_BAUD);
+  const int sample_clock_adjust = -3; // Twiddle factor tweaks sample rate
+  OCR0A = F_CPU / (8UL * 2 * SOFTSERIAL_BAUD) + sample_clock_adjust;
 }
