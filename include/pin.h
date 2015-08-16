@@ -29,4 +29,7 @@ void pin_digital_toggle(Pin pin);
 
 Logic_Level pin_digital_read(Pin pin);
 
+void pin_enable_interrupt(Pin pin);
+void pin_disable_interrupt(Pin pin);
+
 #endif

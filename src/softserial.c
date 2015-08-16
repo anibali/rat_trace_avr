@@ -73,7 +73,7 @@ ISR(TIMER0_COMPA_vect) {
       // Disable this interrupt
       TIMSK0 &= ~_BV(OCIE0A);
       // Enable external RX interrupt
-      PCMSK0 |= _BV(PCINT0);
+      pin_enable_interrupt(Pin_Softserial_RX);
     } else { // Data bit
       if(pin_digital_read(Pin_Softserial_RX) == Logic_High) {
         rx_char |= _BV(rx_bit - 1);
@@ -90,7 +90,7 @@ ISR(PCINT0_vect) {
 
   if(pin_digital_read(Pin_Softserial_RX) == Logic_Low) { // Falling edge
     // Disable this interrupt
-    PCMSK0 &= ~_BV(PCINT0);
+    pin_disable_interrupt(Pin_Softserial_RX);
 
     // Start timer at double frequency of UART
     rx_count = 0;
@@ -219,8 +219,7 @@ void softserial_init() {
 
   pin_set_direction(Pin_Softserial_RX, Direction_Input);
   pin_digital_write(Pin_Softserial_RX, Logic_High); // Enable pull-up
-  PCICR |= _BV(PCIE0);
-  PCMSK0 |= _BV(PCINT0);
+  pin_enable_interrupt(Pin_Softserial_RX);
 
   // Prescale of 8, clear count on compare match
   TCCR0A = _BV(WGM01);
