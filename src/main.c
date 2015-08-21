@@ -55,7 +55,7 @@ void init() {
   pin_set_direction(Pin_Status_LED, Direction_Output);
   pin_digital_write(Pin_Status_LED, Logic_High);
 
-  uart_init();
+  //uart_init();
   printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
   _delay_ms(100); // Give debug message time to send
 
@@ -68,12 +68,14 @@ void init() {
 
   wifi_connect();
 
-  pin_digital_write(Pin_Status_LED, Logic_Low);
-
   Wifi_Error error;
   uint32_t time_val;
   wifi_request_ntp(&time_val, &error);
   printf("Time val: %lu, Error: %d\n", time_val, error);
+
+  if(error == Wifi_Error_None) {
+    pin_digital_write(Pin_Status_LED, Logic_Low);
+  }
 
   adc_init();
 

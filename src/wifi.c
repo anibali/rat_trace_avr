@@ -28,15 +28,15 @@ void wifi_init() {
   softserial_init();
 
   // Set direction of PORTB, pin 4 to output (Wireless enable)
-  DDRC |= _BV(DDC3);
+  DDRC |= _BV(DDC2);
 }
 
 void wifi_enable() {
-  PORTC |= _BV(PORTC3);
+  PORTC |= _BV(PORTC2);
 }
 
 void wifi_disable() {
-  PORTC &= ~_BV(PORTC3);
+  PORTC &= ~_BV(PORTC2);
 }
 
 static void wifi_repeat_until_ok(const char *cmd) {

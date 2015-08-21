@@ -87,7 +87,7 @@ ISR(TIMER0_COMPA_vect) {
   ++rx_count;
 }
 
-ISR(PCINT1_vect) {
+ISR(PCINT2_vect) {
   // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
