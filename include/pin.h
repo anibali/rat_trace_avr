@@ -16,6 +16,7 @@ typedef enum {
   Pin_IR_Enable,
   Pin_Softserial_TX,
   Pin_Softserial_RX,
+  Pin_Wifi_Enable,
   Pin_Debug_Out,
 
   Number_Of_Pins

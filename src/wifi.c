@@ -1,54 +1,58 @@
 #include "wifi.h"
-#include "softserial.h"
-#include "util.h"
-#include "pin.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <avr/io.h>
 #include <util/delay.h>
+
+#include "softserial.h"
+#include "util.h"
+#include "pin.h"
+
+static FILE *serial_output;
+static FILE *serial_input;
+static int (*serial_available)();
 
 #define MEMCMP_CONST(ptr, const_str) memcmp(ptr, const_str, sizeof(const_str))
 
 static void print_response() {
   char c;
   printf("*** START RESPONSE ***\n");
-  while(!softserial_available());
+  while(!serial_available());
   _delay_ms(50);
-  while(softserial_available()) {
-    c = softserial_getc();
+  while(serial_available()) {
+    c = fgetc(serial_input);
     if(c != '\r') putchar(c);
   }
   if(c != '\n') putchar('\n');
   printf("*** END RESPONSE ***\n");
 }
 
-void wifi_init() {
-  softserial_init();
+void wifi_init(FILE *output, FILE *input, int (*available)()) {
+  pin_set_direction(Pin_Wifi_Enable, Direction_Output);
 
-  // Set direction of PORTB, pin 4 to output (Wireless enable)
-  DDRC |= _BV(DDC2);
+  serial_output = output;
+  serial_input = input;
+  serial_available = available;
 }
 
 void wifi_enable() {
-  PORTC |= _BV(PORTC2);
+  pin_digital_write(Pin_Wifi_Enable, Logic_High);
 }
 
 void wifi_disable() {
-  PORTC &= ~_BV(PORTC2);
+  pin_digital_write(Pin_Wifi_Enable, Logic_Low);
 }
 
 static void wifi_repeat_until_ok(const char *cmd) {
   char line[32];
-  int line_len;
 
   while(1) {
-    softserial_puts(cmd);
+    fprintf(serial_output, "%s", cmd);
     _delay_ms(200);
 
-    while(softserial_available()) {
-      line_len = softserial_readline(line, ARRAYSIZE(line));
+    while(serial_available()) {
+      fgets(line, ARRAYSIZE(line), serial_input);
       if(MEMCMP_CONST(line, "OK\r\n") == 0) return;
     }
   }
@@ -56,20 +60,19 @@ static void wifi_repeat_until_ok(const char *cmd) {
 
 bool wifi_is_connected() {
   char line[32];
-  int line_len;
   bool connected = false;
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
-  softserial_puts("AT+CWJAP?\r\n");
+  fputs("AT+CWJAP?\r\n", serial_output);
   _delay_ms(200);
 
-  while(!connected && softserial_available()) {
-    line_len = softserial_readline(line, ARRAYSIZE(line));
+  while(!connected && serial_available()) {
+    fgets(line, ARRAYSIZE(line), serial_input);
     connected = MEMCMP_CONST(line, "OK\r\n") == 0;
   }
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   return connected;
 }
@@ -84,22 +87,22 @@ void wifi_connect() {
   _delay_ms(100);
 
   // Reset wireless
-  softserial_puts("AT+RST\r\n");
+  fputs("AT+RST\r\n", serial_output);
   _delay_ms(100);
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   wifi_repeat_until_ok("AT\r\n");
 
-  softserial_puts("AT+CWMODE=1\r\n");
+  fputs("AT+CWMODE=1\r\n", serial_output);
   _delay_ms(100);
   print_response();
 
-  softserial_printf("AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
+  fprintf(serial_output, "AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
   print_response();
 
   wifi_repeat_until_ok("AT+CWJAP?\r\n");
 
-  softserial_puts("AT+CIPMUX=0\r\n");
+  fputs("AT+CIPMUX=0\r\n", serial_output);
   print_response();
 
   printf("[WIFI] Connected.\n");
@@ -108,17 +111,17 @@ void wifi_connect() {
 void wifi_sendn(const void *message, int message_len) {
   printf("[WIFI] Sending...\n");
 
-  softserial_printf("AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
+  fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
   print_response();
 
-  softserial_printf("AT+CIPSEND=%d\r\n", message_len);
+  fprintf(serial_output, "AT+CIPSEND=%d\r\n", message_len);
   print_response();
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   const char *message_chars = message;
   for(int i = 0; i < message_len; ++i) {
-    softserial_putc(message_chars[i]);
+    fputc(message_chars[i], serial_output);
   }
 }
 
@@ -130,8 +133,8 @@ static bool wifi_is_send_ok() {
   char line[32];
   bool send_ok = false;
 
-  while(!send_ok && softserial_available()) {
-    softserial_readline(line, ARRAYSIZE(line));
+  while(!send_ok && serial_available()) {
+    fgets(line, ARRAYSIZE(line), serial_input);
     send_ok = (MEMCMP_CONST(line, "SEND OK\r\n") == 0);
   }
 
@@ -150,7 +153,7 @@ bool wifi_wait_for_send() {
     _delay_ms(200);
   }
 
-  //softserial_clear_buffer();
+  //while(serial_available()) fgetc(serial_input);
 
   return successful_send;
 }
@@ -184,6 +187,19 @@ uint32_t swap_endian(uint32_t val) {
     ((val & 0xFF000000) >> 24 );
 }
 
+static bool serial_getc_timeout(char *c, const int timeout_ms) {
+  for(int i = 0; i < timeout_ms / 10; ++i) {
+    if(!serial_available()) {
+      _delay_ms(10);
+    } else {
+      *c = fgetc(serial_input);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   const int char_timeout_ms = 500;
 
@@ -195,19 +211,18 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
 
   printf("[WIFI] Sending NTP request...\n");
 
-  // TODO: Move definition of NTP server IP elsewhere
-  softserial_printf("AT+CIPSTART=\"UDP\",\"129.250.35.250\",123\r\n");
+  fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
   _delay_ms(1000);
   print_response();
 
-  softserial_printf("AT+CIPSEND=%d\r\n", sizeof(NTP_Packet));
+  fprintf(serial_output, "AT+CIPSEND=%d\r\n", sizeof(NTP_Packet));
   print_response();
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   const char *message_chars = (char*)&packet;
   for(int i = 0; i < sizeof(NTP_Packet); ++i) {
-    softserial_putc(message_chars[i]);
+    fputc(message_chars[i], serial_output);
   }
 
   _delay_ms(1000);
@@ -219,7 +234,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   // Wait for response
   while(marker_pos < strlen(marker)) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
     }
     if(c == marker[marker_pos]) {
@@ -233,7 +248,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
 
   for(int i = 0; true; ++i) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
     }
     if(c >= '0' && c <= '9') {
@@ -255,16 +270,16 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   char* packet_bytes = (char*)&packet;
   for(int i = 0; i < response_len; ++i) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
     }
     packet_bytes[i] = c;
   }
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   // Will error if remote closed connection already, that's fine
-  softserial_printf("AT+CIPCLOSE\r\n");
+  fprintf(serial_output, "AT+CIPCLOSE\r\n");
   _delay_ms(100);
   print_response();
 
@@ -289,7 +304,7 @@ uint32_t wifi_request_time(Wifi_Error *error) {
   // Wait for response
   while(marker_pos < strlen(marker)) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
       return 0;
     }
@@ -304,7 +319,7 @@ uint32_t wifi_request_time(Wifi_Error *error) {
 
   for(int i = 0; true; ++i) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
       return 0;
     }
@@ -330,7 +345,7 @@ uint32_t wifi_request_time(Wifi_Error *error) {
 
   for(int i = 0; i < response_len; ++i) {
     char c;
-    if(!softserial_getc_timeout(&c, char_timeout_ms)) {
+    if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
       return 0;
     }
@@ -341,7 +356,7 @@ uint32_t wifi_request_time(Wifi_Error *error) {
 
   uint32_t time_val = strtoul(response, NULL, 10);
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   // Will error if remote closed connection already, that's fine
   softserial_printf("AT+CIPCLOSE\r\n");
@@ -364,7 +379,7 @@ void wifi_test_tcp() {
   softserial_printf("AT+CIPSEND=%d\r\n", strlen(http));
   print_response();
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
   softserial_printf(http);
 
   _delay_ms(1000);
@@ -372,7 +387,7 @@ void wifi_test_tcp() {
   char line_buf[128];
   int content_length = -1;
 
-  while(softserial_available()) {
+  while(serial_available()) {
     softserial_readline(line_buf, ARRAYSIZE(line_buf));
 
     if(memcmp(line_buf, "Content-Length: ", 16) == 0) {
@@ -391,7 +406,7 @@ void wifi_test_tcp() {
 
   printf("CONTENT: %s\n", content);
 
-  softserial_clear_buffer();
+  while(serial_available()) fgetc(serial_input);
 
   // Will error if remote closed connection already, that's fine
   softserial_printf("AT+CIPCLOSE\r\n");

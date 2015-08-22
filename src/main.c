@@ -9,6 +9,7 @@
 
 #include "util.h"
 #include "uart.h"
+#include "softserial.h"
 #include "wifi.h"
 #include "adc.h"
 #include "pin.h"
@@ -55,16 +56,20 @@ void init() {
   pin_set_direction(Pin_Status_LED, Direction_Output);
   pin_digital_write(Pin_Status_LED, Logic_High);
 
-  //uart_init();
-  printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
-  _delay_ms(100); // Give debug message time to send
+  sleep_init();
+  uart_init();
+  wifi_init(&uart_output, &uart_input, uart_available);
+
+  // Use software serial for stdout and stdin (debugging purposes)
+  softserial_init();
+  stdout = &softserial_output;
+  stdin  = &softserial_input;
 
   // Enable interrupts
   sei();
 
-  sleep_init();
-
-  wifi_init();
+  printf("Compiled at: %s, %s\n", __TIME__, __DATE__);
+  _delay_ms(100); // Give debug message time to send
 
   wifi_connect();
 

@@ -4,12 +4,13 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#include <stdio.h>
-
 #include "util.h"
 #include "pin.h"
 
 #define SOFTSERIAL_BAUD 9600
+
+FILE softserial_output = FDEV_SETUP_STREAM(softserial_putc, NULL, _FDEV_SETUP_WRITE);
+FILE softserial_input = FDEV_SETUP_STREAM(NULL, softserial_getc, _FDEV_SETUP_READ);
 
 static char tx_state = 8;
 static volatile char tx_start = 0;
@@ -87,7 +88,7 @@ ISR(TIMER0_COMPA_vect) {
   ++rx_count;
 }
 
-ISR(PCINT2_vect) {
+ISR(PCINT1_vect) {
   // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
@@ -103,6 +104,33 @@ ISR(PCINT2_vect) {
   }
 }
 
+void softserial_init() {
+  //// TX
+
+  pin_set_direction(Pin_Softserial_TX, Direction_Output);
+
+  // Prescale of 8, clear count on compare match
+  TCCR1A = 0;
+  TCCR1B = _BV(CS11) | _BV(WGM12);
+  // Set compare value corresponding to baud rate
+  OCR1A = F_CPU / (8UL * SOFTSERIAL_BAUD);
+  // Enable Timer 1 compare interrupt
+  TIMSK1 |= _BV(OCIE1A);
+
+  //// RX
+
+  pin_set_direction(Pin_Softserial_RX, Direction_Input);
+  pin_digital_write(Pin_Softserial_RX, Logic_High); // Enable pull-up
+  pin_enable_interrupt(Pin_Softserial_RX);
+
+  // Prescale of 8, clear count on compare match
+  TCCR0A = _BV(WGM01);
+  TCCR0B = _BV(CS01);
+  // Set compare value corresponding to double baud rate
+  const int sample_clock_adjust = -3; // Twiddle factor tweaks sample rate
+  OCR0A = F_CPU / (8UL * 2 * SOFTSERIAL_BAUD) + sample_clock_adjust;
+}
+
 // Transmit a single character using software serial (blocking)
 void softserial_putc(char c) {
   tx_char = c;
@@ -110,6 +138,24 @@ void softserial_putc(char c) {
   while(tx_start || tx_busy);
 }
 
+char softserial_getc() {
+  // Wait until there is something to read
+  while(rx_buffer_read_pos == rx_buffer_pos);
+
+  char c = rx_buffer[rx_buffer_read_pos];
+  rx_buffer_read_pos = (rx_buffer_read_pos + 1) % rx_buffer_len;
+  return c;
+}
+
+int softserial_available() {
+  if(rx_buffer_read_pos > rx_buffer_pos) {
+    return (rx_buffer_len + rx_buffer_pos) - rx_buffer_read_pos;
+  } else {
+    return rx_buffer_pos - rx_buffer_read_pos;
+  }
+}
+
+#if 0
 // Transmit a null-terminated string using software serial (blocking)
 void softserial_puts(const char *str) {
   for(int i = 0; str[i] != '\0'; ++i) {
@@ -131,25 +177,8 @@ int softserial_printf(const char* format, ...) {
   return n_chars;
 }
 
-int softserial_available() {
-  if(rx_buffer_read_pos > rx_buffer_pos) {
-    return (rx_buffer_len + rx_buffer_pos) - rx_buffer_read_pos;
-  } else {
-    return rx_buffer_pos - rx_buffer_read_pos;
-  }
-}
-
 void softserial_clear_buffer() {
   rx_buffer_read_pos = rx_buffer_pos;
-}
-
-char softserial_getc() {
-  // Wait until there is something to read
-  while(rx_buffer_read_pos == rx_buffer_pos);
-
-  char c = rx_buffer[rx_buffer_read_pos];
-  rx_buffer_read_pos = (rx_buffer_read_pos + 1) % rx_buffer_len;
-  return c;
 }
 
 bool softserial_getc_timeout(char *c, const int timeout_ms) {
@@ -204,30 +233,4 @@ void softserial_dump() {
   printf(str);
   printf("--- DUMPED ---\n");
 }
-
-void softserial_init() {
-  //// TX
-
-  pin_set_direction(Pin_Softserial_TX, Direction_Output);
-
-  // Prescale of 8, clear count on compare match
-  TCCR1A = 0;
-  TCCR1B = _BV(CS11) | _BV(WGM12);
-  // Set compare value corresponding to baud rate
-  OCR1A = F_CPU / (8UL * SOFTSERIAL_BAUD);
-  // Enable Timer 1 compare interrupt
-  TIMSK1 |= _BV(OCIE1A);
-
-  //// RX
-
-  pin_set_direction(Pin_Softserial_RX, Direction_Input);
-  pin_digital_write(Pin_Softserial_RX, Logic_High); // Enable pull-up
-  pin_enable_interrupt(Pin_Softserial_RX);
-
-  // Prescale of 8, clear count on compare match
-  TCCR0A = _BV(WGM01);
-  TCCR0B = _BV(CS01);
-  // Set compare value corresponding to double baud rate
-  const int sample_clock_adjust = -3; // Twiddle factor tweaks sample rate
-  OCR0A = F_CPU / (8UL * 2 * SOFTSERIAL_BAUD) + sample_clock_adjust;
-}
+#endif

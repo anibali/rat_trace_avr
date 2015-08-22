@@ -7,7 +7,7 @@
 
 void uart_putchar(char c, FILE *stream);
 char uart_getchar(FILE *stream);
-int uart_getchar_timeout(FILE *stream, char *c);
+int uart_available();
 
 void uart_init();
 
