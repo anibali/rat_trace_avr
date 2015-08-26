@@ -54,6 +54,7 @@ void pin_register_all() {
   REGISTER_PIN(Pin_Status_LED,    Port_B, 1);
   REGISTER_PIN(Pin_IR_Enable,     Port_D, 2);
   REGISTER_PIN(Pin_Wifi_Enable,   Port_C, 2);
+  REGISTER_PIN(Pin_Battery_Test_Enable, Port_D, 3);
 
   // NOTE: May require change to ISR vector in softserial.c
   REGISTER_PIN(Pin_Softserial_TX, Port_C, 3);

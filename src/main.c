@@ -56,6 +56,8 @@ void init() {
   pin_set_direction(Pin_Status_LED, Direction_Output);
   pin_digital_write(Pin_Status_LED, Logic_High);
 
+  pin_set_direction(Pin_Battery_Test_Enable, Direction_Output);
+
   sleep_init();
   uart_init();
   wifi_init(&uart_output, &uart_input, uart_available);
@@ -85,6 +87,15 @@ void init() {
   adc_init();
 
   wifi_disable();
+}
+
+uint16_t vbat_read() {
+  pin_digital_write(Pin_Battery_Test_Enable, Logic_High);
+  _delay_ms(50);
+  uint16_t vbat_value = adc_read(6);
+  pin_digital_write(Pin_Battery_Test_Enable, Logic_Low);
+
+  return vbat_value;
 }
 
 uint16_t ir_read() {
@@ -140,6 +151,9 @@ int main() {
 
       iterations = 0;
       distance_sum = 0;
+
+      int16_t vbat = 4000 + ((vbat_read() - 217l) * 2000l) / (327 - 217);
+      printf("Vbat = %d mV\n", vbat);
     }
 
     if(do_send) {

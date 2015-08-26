@@ -47,7 +47,8 @@ void wifi_disable() {
 static void wifi_repeat_until_ok(const char *cmd) {
   char line[32];
 
-  while(1) {
+  for(int i = 0;;++i) {
+    printf("%s - Attempt %2d\n", cmd, i);
     fprintf(serial_output, "%s", cmd);
     _delay_ms(200);
 
@@ -55,6 +56,8 @@ static void wifi_repeat_until_ok(const char *cmd) {
       fgets(line, ARRAYSIZE(line), serial_input);
       if(MEMCMP_CONST(line, "OK\r\n") == 0) return;
     }
+
+    _delay_ms(300);
   }
 }
 
@@ -111,8 +114,12 @@ void wifi_connect() {
 void wifi_sendn(const void *message, int message_len) {
   printf("[WIFI] Sending...\n");
 
-  fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
-  print_response();
+  char cmd[64];
+  sprintf(cmd, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
+  wifi_repeat_until_ok(cmd);
+
+  //fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
+  //print_response();
 
   fprintf(serial_output, "AT+CIPSEND=%d\r\n", message_len);
   print_response();
@@ -211,9 +218,13 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
 
   printf("[WIFI] Sending NTP request...\n");
 
-  fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
-  _delay_ms(1000);
-  print_response();
+  char cmd[64];
+  sprintf(cmd, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
+  wifi_repeat_until_ok(cmd);
+
+  // fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
+  // _delay_ms(1000);
+  // print_response();
 
   fprintf(serial_output, "AT+CIPSEND=%d\r\n", sizeof(NTP_Packet));
   print_response();
