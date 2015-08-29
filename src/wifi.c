@@ -167,9 +167,7 @@ bool wifi_wait_for_send() {
 
 // NOTE: Big-endian
 typedef struct {
-  uint8_t li :2;
-  uint8_t version :3;
-  uint8_t mode :3;
+  uint8_t li_version_mode;
   uint8_t stratum;
   uint8_t poll;
   uint8_t precision;
@@ -186,7 +184,7 @@ typedef struct {
   uint32_t transmit_time_frac;
 } NTP_Packet;
 
-uint32_t swap_endian(uint32_t val) {
+static uint32_t swap_endian(uint32_t val) {
   return
     ((val & 0xFF      ) << 24 ) |
     ((val & 0xFF00    ) << 8  ) |
@@ -211,9 +209,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   const int char_timeout_ms = 500;
 
   NTP_Packet packet = {0};
-  packet.li = 3;
-  packet.version = 4;
-  packet.mode = 3;
+  packet.li_version_mode = (3 << 0) | (4 << 2) | (3 << 5);
   // TODO: More here...
 
   printf("[WIFI] Sending NTP request...\n");
