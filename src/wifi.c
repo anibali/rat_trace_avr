@@ -3,11 +3,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 #include <util/delay.h>
 
+#include "util.h"
 #include "softserial.h"
 #include "util.h"
 #include "pin.h"
+
+static const char AT_CIPSTART_UDP[] PROGMEM = "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n";
+static const char AT_CIPCLOSE[] PROGMEM     = "AT+CIPCLOSE\r\n";
+static const char AT_CIPSEND[] PROGMEM      = "AT+CIPSEND=%d\r\n";
+static const char AT_RST[] PROGMEM          = "AT+RST\r\n";
+static const char AT_CWJAP[] PROGMEM        = "AT+CWJAP=\"%s\",\"%s\"\r\n";
+static const char AT_CWJAPq[] PROGMEM       = "AT+CWJAP?\r\n";
+static const char AT_CWMODE_1[] PROGMEM     = "AT+CWMODE=1\r\n";
+static const char AT_CIPMUX_0[] PROGMEM     = "AT+CIPMUX=0\r\n";
 
 static FILE *serial_output;
 static FILE *serial_input;
@@ -17,7 +28,7 @@ static int (*serial_available)();
 
 static void print_response() {
   char c;
-  printf("*** START RESPONSE ***\n");
+  printf_P(PSTR("*** START RESPONSE ***\n"));
   while(!serial_available());
   _delay_ms(50);
   while(serial_available()) {
@@ -25,7 +36,7 @@ static void print_response() {
     if(c != '\r') putchar(c);
   }
   if(c != '\n') putchar('\n');
-  printf("*** END RESPONSE ***\n");
+  printf_P(PSTR("*** END RESPONSE ***\n"));
 }
 
 void wifi_init(FILE *output, FILE *input, int (*available)()) {
@@ -48,7 +59,7 @@ static void wifi_repeat_until_ok(const char *cmd) {
   char line[32];
 
   for(int i = 0;;++i) {
-    printf("%s - Attempt %2d\n", cmd, i);
+    printf_P(PSTR("%s - Attempt %2d\n"), cmd, i);
     fprintf(serial_output, "%s", cmd);
     _delay_ms(200);
 
@@ -67,7 +78,7 @@ bool wifi_is_connected() {
 
   while(serial_available()) fgetc(serial_input);
 
-  fputs("AT+CWJAP?\r\n", serial_output);
+  fputs_P(AT_CWJAPq, serial_output);
   _delay_ms(200);
 
   while(!connected && serial_available()) {
@@ -84,44 +95,42 @@ void wifi_connect() {
   char response[256];
   char response_len;
 
-  printf("[WIFI] Connecting...\n");
+  printf_P(PSTR("[WIFI] Connecting...\n"));
 
   wifi_enable();
   _delay_ms(100);
 
   // Reset wireless
-  fputs("AT+RST\r\n", serial_output);
+  fputs_P(AT_RST, serial_output);
   _delay_ms(100);
   while(serial_available()) fgetc(serial_input);
 
   wifi_repeat_until_ok("AT\r\n");
 
-  fputs("AT+CWMODE=1\r\n", serial_output);
+  fputs_P(AT_CWMODE_1, serial_output);
   _delay_ms(100);
   print_response();
 
-  fprintf(serial_output, "AT+CWJAP=\"%s\",\"%s\"\r\n", WIFI_SSID, WIFI_PASS);
+  fprintf_P(serial_output, AT_CWJAP, WIFI_SSID, WIFI_PASS);
   print_response();
 
-  wifi_repeat_until_ok("AT+CWJAP?\r\n");
+  // TODO: Retry connect after x failures
+  while(!wifi_is_connected());
 
-  fputs("AT+CIPMUX=0\r\n", serial_output);
+  fputs_P(AT_CIPMUX_0, serial_output);
   print_response();
 
-  printf("[WIFI] Connected.\n");
+  printf_P(PSTR("[WIFI] Connected.\n"));
 }
 
 void wifi_sendn(const void *message, int message_len) {
-  printf("[WIFI] Sending...\n");
+  printf_P(PSTR("[WIFI] Sending...\n"));
 
   char cmd[64];
-  sprintf(cmd, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
+  sprintf_P(cmd, AT_CIPSTART_UDP, WIFI_DEST_IP, WIFI_DEST_PORT);
   wifi_repeat_until_ok(cmd);
 
-  //fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", WIFI_DEST_IP, WIFI_DEST_PORT);
-  //print_response();
-
-  fprintf(serial_output, "AT+CIPSEND=%d\r\n", message_len);
+  fprintf_P(serial_output, AT_CIPSEND, message_len);
   print_response();
 
   while(serial_available()) fgetc(serial_input);
@@ -184,14 +193,6 @@ typedef struct {
   uint32_t transmit_time_frac;
 } NTP_Packet;
 
-static uint32_t swap_endian(uint32_t val) {
-  return
-    ((val & 0xFF      ) << 24 ) |
-    ((val & 0xFF00    ) << 8  ) |
-    ((val & 0xFF0000  ) >> 8  ) |
-    ((val & 0xFF000000) >> 24 );
-}
-
 static bool serial_getc_timeout(char *c, const int timeout_ms) {
   for(int i = 0; i < timeout_ms / 10; ++i) {
     if(!serial_available()) {
@@ -212,17 +213,13 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   packet.li_version_mode = (3 << 0) | (4 << 2) | (3 << 5);
   // TODO: More here...
 
-  printf("[WIFI] Sending NTP request...\n");
+  printf_P(PSTR("[WIFI] Sending NTP request...\n"));
 
   char cmd[64];
-  sprintf(cmd, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
+  sprintf_P(cmd, AT_CIPSTART_UDP, NTP_IP, NTP_PORT);
   wifi_repeat_until_ok(cmd);
 
-  // fprintf(serial_output, "AT+CIPSTART=\"UDP\",\"%s\",%d\r\n", NTP_IP, NTP_PORT);
-  // _delay_ms(1000);
-  // print_response();
-
-  fprintf(serial_output, "AT+CIPSEND=%d\r\n", sizeof(NTP_Packet));
+  fprintf_P(serial_output, AT_CIPSEND, sizeof(NTP_Packet));
   print_response();
 
   while(serial_available()) fgetc(serial_input);
@@ -286,7 +283,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   while(serial_available()) fgetc(serial_input);
 
   // Will error if remote closed connection already, that's fine
-  fprintf(serial_output, "AT+CIPCLOSE\r\n");
+  fprintf_P(serial_output, AT_CIPCLOSE);
   _delay_ms(100);
   print_response();
 
