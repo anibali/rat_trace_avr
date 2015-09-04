@@ -240,6 +240,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
     char c;
     if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
+      return;
     }
     if(c == marker[marker_pos]) {
       ++marker_pos;
@@ -254,6 +255,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
     char c;
     if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
+      return;
     }
     if(c >= '0' && c <= '9') {
       response_len_str[i] = c;
@@ -262,6 +264,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
       break;
     } else {
       if(error != NULL) *error = Wifi_Error_Unknown;
+      return;
     }
   }
 
@@ -269,6 +272,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
 
   if(response_len != sizeof(NTP_Packet)) {
     if(error != NULL) *error = Wifi_Error_Unknown;
+    return;
   }
 
   char* packet_bytes = (char*)&packet;
@@ -276,6 +280,7 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
     char c;
     if(!serial_getc_timeout(&c, char_timeout_ms)) {
       if(error != NULL) *error = Wifi_Error_Timeout;
+      return;
     }
     packet_bytes[i] = c;
   }
@@ -289,7 +294,8 @@ void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
 
   // TODO: Use other data in some way
   *time_val = swap_endian(packet.transmit_time);
-  *time_val -= 3155673600ul; // Y2K time
+  //*time_val -= 3155673600ul; // Y2K time
+  *time_val -= 0x83AA7E80; // Unix time
 
   if(error != NULL) *error = Wifi_Error_None;
 }

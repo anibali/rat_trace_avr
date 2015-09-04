@@ -8,7 +8,8 @@ INCLUDEDIR = include
 vpath %.c $(SRCDIR)
 vpath %.h $(INCLUDEDIR)
 BINNAME = arduino
-OBJS = $(addprefix $(OBJDIR)/, util.o uart.o wifi.o softserial.o adc.o pin.o)
+OBJS = $(addprefix $(OBJDIR)/, util.o uart.o wifi.o softserial.o adc.o pin.o \
+	i2c.o rtc.o)
 
 default: main clean
 

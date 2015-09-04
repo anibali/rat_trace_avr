@@ -58,7 +58,7 @@ void pin_register_all() {
 
   // NOTE: May require change to ISR vector in softserial.c
   REGISTER_PIN(Pin_Softserial_TX, Port_C, 3);
-  REGISTER_PIN(Pin_Softserial_RX, Port_C, 4);
+  REGISTER_PIN(Pin_Softserial_RX, Port_C, 1);
 
   REGISTER_PIN(Pin_Debug_Out, Port_C, 5);
 
