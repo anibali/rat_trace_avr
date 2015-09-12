@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void rtc_init();
+void rtc_read_id(uint64_t *id);
 uint32_t rtc_read_seconds();
 void rtc_write_seconds(uint32_t seconds);
 uint8_t rtc_read_status();

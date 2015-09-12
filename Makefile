@@ -9,7 +9,7 @@ vpath %.c $(SRCDIR)
 vpath %.h $(INCLUDEDIR)
 BINNAME = arduino
 OBJS = $(addprefix $(OBJDIR)/, util.o uart.o wifi.o softserial.o adc.o pin.o \
-	i2c.o rtc.o)
+	i2c.o rtc.o report.o clock.o)
 
 default: main clean
 
