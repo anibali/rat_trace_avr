@@ -6,6 +6,8 @@
 #include "rtc.h"
 #include "clock.h"
 
+#define MAX_CHUNKS 8
+
 typedef enum {
   Chunk_Type_Battery_Level = 1,
   Chunk_Type_Bait_Level
@@ -36,8 +38,8 @@ typedef struct {
 } Chunk_Bait_Level;
 #pragma pack(pop)
 
-// TODO: Resize appropriately, needs to fir biggest report we will send
-char report_data[256];
+// TODO: Resize appropriately, needs to fit biggest report we will send
+char report_data[128];
 char *report_data_pos;
 Report_Header *report_header;
 
@@ -51,15 +53,31 @@ void report_init() {
   rtc_read_id((uint64_t*)id);
   report_header->trap_id = id[0];
 
-  report_new();
-}
-
-void report_new() {
   report_header->n_chunks = 0;
   report_data_pos = &report_data[sizeof(Report_Header)];
 }
 
+void report_new() {
+//  report_header->n_chunks = 0;
+//  report_data_pos = &report_data[sizeof(Report_Header)];
+}
+
+static void report_add_chunk() {
+  if(report_header->n_chunks >= MAX_CHUNKS) {
+    Report_Chunk_Header *chunk1 =
+      (Report_Chunk_Header*)&report_data[sizeof(Report_Header)];
+    char *other_chunks =
+      (char*)chunk1 + sizeof(Report_Chunk_Header) + chunk1->length;
+    memcpy(chunk1, other_chunks, report_data_pos - other_chunks);
+    report_data_pos -= other_chunks - (char*)chunk1;
+  } else {
+    ++report_header->n_chunks;
+  }
+}
+
 void report_add_battery_level_chunk(uint16_t level) {
+  report_add_chunk();
+
   Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
   chunk_header->type = Chunk_Type_Battery_Level;
   clock_get_time(&chunk_header->timestamp);
@@ -69,8 +87,6 @@ void report_add_battery_level_chunk(uint16_t level) {
   Chunk_Battery_Level *chunk = (Chunk_Battery_Level*)report_data_pos;
   chunk->level = level;
   report_data_pos += sizeof(Chunk_Battery_Level);
-
-  ++report_header->n_chunks;
 }
 
 // NOTE: Wifi must be connected

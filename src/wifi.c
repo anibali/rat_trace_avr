@@ -206,6 +206,24 @@ static bool serial_getc_timeout(char *c, const int timeout_ms) {
   return false;
 }
 
+// NOTE: Takes about 3s to run
+void wifi_access_point_info() {
+  printf_P(PSTR("[WIFI] Listing APs...\n"));
+  fprintf_P(serial_output, PSTR("AT+CWLAP=\"%s\"\r\n"), WIFI_SSID);
+
+  char message[128];
+  char *msg_pos = message;
+
+  bool success = false;
+  const int max_attempts = 20;
+  for(int i = 0; !success && i < max_attempts; ++i) {
+    _delay_ms(200);
+    fgets(msg_pos, ARRAYSIZE(message) - (msg_pos - message), serial_input);
+    success = (MEMCMP_CONST(msg_pos, "OK\r\n") == 0);
+    msg_pos = message + strlen(message) - 1;
+  }
+}
+
 void wifi_request_ntp(uint32_t *time_val, Wifi_Error *error) {
   const int char_timeout_ms = 500;
 

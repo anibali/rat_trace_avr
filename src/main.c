@@ -110,7 +110,7 @@ int main() {
     if(do_send) {
       msg_waiting = false;
 
-      //report_send();
+      report_send();
       report_new();
     }
 
@@ -135,10 +135,6 @@ int main() {
       int16_t vbat = 4000 + ((vbat_read() - 217l) * 2000l) / (327 - 217);
       printf("Vbat = %d mV\n", vbat);
       report_add_battery_level_chunk(vbat);
-
-      // uint32_t time_secs;
-      // clock_get_time(&time_secs);
-      // printf("Time = %lu\n", time_secs);
     }
 
     if(do_send) {
