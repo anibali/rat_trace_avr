@@ -17,7 +17,7 @@
 #include "report.h"
 #include "clock.h"
 
-ISR(WDT_vect) {}
+EMPTY_INTERRUPT(WDT_vect);
 
 void sleep_init() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
