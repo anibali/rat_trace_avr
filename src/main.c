@@ -19,7 +19,7 @@
 
 EMPTY_INTERRUPT(WDT_vect);
 
-void sleep_init() {
+static void sleep_init() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 
   MCUSR &= ~_BV(WDRF);
@@ -29,7 +29,7 @@ void sleep_init() {
   WDTCSR |= _BV(WDIE);
 }
 
-void sleep_now() {
+static void sleep_now() {
   sleep_enable();
   power_all_disable();
 
@@ -37,6 +37,18 @@ void sleep_now() {
 
   sleep_disable();
   power_all_enable();
+}
+
+/**
+ * Check how long it's been since the last resync, and perform a resync
+ * if it's been too long.
+ */
+static void check_resync() {
+  uint32_t base_time = clock_get_base_time();
+
+  if(base_time == 0 || clock_get_time() - base_time > 1 * DAYS_TO_SECS) {
+    clock_resync();
+  }
 }
 
 void init() {
@@ -69,7 +81,7 @@ void init() {
 
   wifi_connect();
 
-  clock_resync();
+  check_resync();
 
   adc_init();
 
@@ -118,16 +130,19 @@ int main() {
 
     ++iterations;
 
+    uint32_t secs = clock_get_time();
+    printf("Secs: %ld\n", secs);
+
     if(iterations >= max_iterations) {
       uint16_t distance_avg = distance_sum / iterations;
       printf("Avg distance: %u\n", distance_avg);
 
-      if(true || distance_avg < 300) {
-        if(!msg_waiting) {
-          wifi_enable();
-          msg_waiting = true;
-        }
-      }
+      // if(distance_avg < 300) {
+      //   if(!msg_waiting) {
+      //     wifi_enable();
+      //     msg_waiting = true;
+      //   }
+      // }
 
       iterations = 0;
       distance_sum = 0;
@@ -139,6 +154,7 @@ int main() {
 
     if(do_send) {
       wifi_wait_for_send();
+      check_resync();
       wifi_disable();
     }
 

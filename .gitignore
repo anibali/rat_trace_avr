@@ -1,4 +1,5 @@
 *.hex
-/build/
+*.eep
+/obj/
 *.o
 /server/server

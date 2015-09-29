@@ -58,8 +58,7 @@ void report_init() {
 }
 
 void report_new() {
-//  report_header->n_chunks = 0;
-//  report_data_pos = &report_data[sizeof(Report_Header)];
+  // Don't really need to do anything here right now
 }
 
 static void report_add_chunk() {
