@@ -25,8 +25,6 @@ typedef enum {
 } DS1372_Reg;
 
 void rtc_init() {
-  i2c_init();
-
   rtc_write_control(0x0E);
   rtc_write_status(0x00);
 }
@@ -50,7 +48,7 @@ uint32_t rtc_read_seconds() {
 void rtc_write_seconds(uint32_t seconds) {
   // TODO: Error handling
   i2c_write_register((uint8_t*)&seconds, 4, DS1372_Address,
-    DS1372_Reg_Clock0, NULL);
+    DS1372_Reg_Clock0, true, NULL);
 }
 
 uint8_t rtc_read_status() {
@@ -64,7 +62,7 @@ uint8_t rtc_read_status() {
 void rtc_write_status(uint8_t status) {
   // TODO: Error handling
   i2c_write_register(&status, 1, DS1372_Address,
-    DS1372_Reg_Status, NULL);
+    DS1372_Reg_Status, true, NULL);
 }
 
 uint8_t rtc_read_control() {
@@ -78,5 +76,5 @@ uint8_t rtc_read_control() {
 void rtc_write_control(uint8_t control) {
   // TODO: Error handling
   i2c_write_register(&control, 1, DS1372_Address,
-    DS1372_Reg_Control, NULL);
+    DS1372_Reg_Control, true, NULL);
 }

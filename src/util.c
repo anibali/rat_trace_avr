@@ -7,3 +7,23 @@ uint32_t swap_endian(uint32_t val) {
     ((val & 0xFF0000  ) >> 8  ) |
     ((val & 0xFF000000) >> 24 );
 }
+
+void sleep_init() {
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
+  MCUSR &= ~_BV(WDRF);
+  WDTCSR |= _BV(WDCE) | _BV(WDE);
+  //WDTCSR = _BV(WDP2); // 0.25 secs
+  WDTCSR = _BV(WDP2) | _BV(WDP1); // 1.0 secs
+  WDTCSR |= _BV(WDIE);
+}
+
+void sleep_now() {
+  sleep_enable();
+  power_all_disable();
+
+  sleep_mode();
+
+  sleep_disable();
+  power_all_enable();
+}

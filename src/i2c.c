@@ -106,7 +106,7 @@ finish:
 }
 
 void i2c_write_register(uint8_t *data, uint8_t n_bytes, uint8_t slave_addr,
-  uint8_t reg_addr, I2C_Error *error)
+  uint8_t reg_addr, bool resend_addr, I2C_Error *error)
 {
   I2C_Error _error;
 
@@ -116,10 +116,12 @@ void i2c_write_register(uint8_t *data, uint8_t n_bytes, uint8_t slave_addr,
   if(_error != I2C_Error_None) goto finish;
   i2c_write_byte(reg_addr, &_error);
   if(_error != I2C_Error_None) goto finish;
-  i2c_start(&_error);
-  if(_error != I2C_Error_None) goto finish;
-  i2c_write_sla(slave_addr, &_error);
-  if(_error != I2C_Error_None) goto finish;
+  if(resend_addr) {
+    i2c_start(&_error);
+    if(_error != I2C_Error_None) goto finish;
+    i2c_write_sla(slave_addr, &_error);
+    if(_error != I2C_Error_None) goto finish;
+  }
   for(int i = 0; i < n_bytes; ++i) {
     i2c_write_byte(data[i], &_error);
     if(_error != I2C_Error_None) goto finish;
