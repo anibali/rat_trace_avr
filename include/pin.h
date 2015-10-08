@@ -13,7 +13,6 @@ typedef enum {
 
 typedef enum {
   Pin_Status_LED,
-  Pin_IR_Enable,
   Pin_Softserial_TX,
   Pin_Softserial_RX,
   Pin_Wifi_Enable,

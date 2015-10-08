@@ -88,7 +88,7 @@ ISR(TIMER0_COMPA_vect) {
   ++rx_count;
 }
 
-ISR(PCINT1_vect) {
+ISR(PCINT0_vect) {
   // NOTE: If using multiple PCINT interrupts we need to store/compare prev
   // state to determine which pin changed.
 
@@ -127,7 +127,7 @@ void softserial_init() {
   TCCR0A = _BV(WGM01);
   TCCR0B = _BV(CS01);
   // Set compare value corresponding to double baud rate
-  const int sample_clock_adjust = -3; // Twiddle factor tweaks sample rate
+  const int sample_clock_adjust = 0; // Twiddle factor tweaks sample rate
   OCR0A = F_CPU / (8UL * 2 * SOFTSERIAL_BAUD) + sample_clock_adjust;
 }
 

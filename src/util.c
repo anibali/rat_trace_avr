@@ -8,6 +8,20 @@ uint32_t swap_endian(uint32_t val) {
     ((val & 0xFF000000) >> 24 );
 }
 
+uint16_t sqrt_u32(uint32_t x) {
+  uint16_t result = 0;
+  uint16_t add = UINT16_C(0x8000);
+
+  for(int i = 0; i < 16; ++i) {
+    uint16_t tmp = result | add;
+    uint32_t g_squared = (uint32_t)tmp * tmp;
+    if(x >= g_squared) result = tmp;
+    add >>= 1;
+  }
+
+  return result;
+}
+
 void sleep_init() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 

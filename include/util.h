@@ -8,6 +8,7 @@
 #define ARRAYSIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 uint32_t swap_endian(uint32_t val);
+uint16_t sqrt_u32(uint32_t x);
 
 void sleep_init();
 void sleep_now();
