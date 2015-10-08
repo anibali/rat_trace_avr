@@ -21,6 +21,8 @@ typedef enum {
   VCNL4000_Reg_Proximity_Timing,
 } VCNL4000_Reg;
 
+#define MAX_PROX_SAMPLES 31
+
 #define PROX_DATA_RDY 5
 #define PROX_OD       3
 
@@ -34,22 +36,29 @@ static inline void vcnl_write(uint8_t reg, uint8_t val) {
   i2c_write_register(&val, 1, VCNL4000_Address, reg, false, NULL);
 }
 
-static uint16_t linearize(uint16_t raw_value) {
-  // TODO: Tune these values
-  const uint32_t m = 1266730;
-  const uint16_t c = 2000;
+// Value read when no obstacle is in front of sensor
+#define PROX_C (UINT16_C(2530))
+// Linear scaling factor for distance. sqrt((m = 1266730) * 1600)
+#define PROX_SQRT_M (UINT32_C(45020))
 
-  uint32_t sqrt_m = sqrt_u32(m * 40 * 40); // Can be precalculated
-  uint32_t raw_take_c = raw_value - c;
+static uint16_t linearize(uint16_t irradiance) {
+  // Results get unstable when c is not reasonably larger than
+  // irradiance - simply return max value to indicate "object is far"
+  if(irradiance < (PROX_C + 300)) {
+    return UINT16_MAX;
+  }
+
+  uint32_t irr_take_c = irradiance - PROX_C;
 
   uint16_t microns =
-    (sqrt_m * sqrt_u32(raw_take_c * 25 * 25)) / raw_take_c;
+    (PROX_SQRT_M * sqrt_u32(irr_take_c * 25 * 25)) / irr_take_c;
 
   return microns;
 }
 
 void proximity_init() {
   // Set IR LED current (current = value * 10mA)
+  // NOTE: Linearization calculation depends on this value
   vcnl_write(VCNL4000_Reg_LED_Current, 15);
 }
 
@@ -71,4 +80,22 @@ uint16_t proximity_measure() {
   proximity |= vcnl_read(VCNL4000_Reg_Proximity_Result_Low);
 
   return linearize(proximity);
+}
+
+uint16_t proximity_measure_average(uint8_t n_samples) {
+#ifdef _DEBUG
+  if(n_samples > MAX_PROX_SAMPLES) {
+    printf("[PROX] Error - Invalid number of samples\n");
+    return 0;
+  }
+#endif
+
+  uint16_t proximities[MAX_PROX_SAMPLES];
+
+  for(int i = 0; i < n_samples; ++i) {
+    proximities[i] = proximity_measure();
+  }
+  sort(proximities, n_samples);
+
+  return proximities[n_samples / 2];
 }

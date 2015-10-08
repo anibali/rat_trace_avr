@@ -1,5 +1,5 @@
 CC = avr-gcc
-CFLAGS = -Os -std=c99 -DF_CPU=8000000UL -mmcu=atmega328p
+CFLAGS = -Os -std=c99 -D_DEBUG -DF_CPU=8000000UL -mmcu=atmega328p
 CXX = avr-g++
 CXXFLAGS = -Os -DF_CPU=8000000UL -mmcu=atmega328p
 OBJCOPY = avr-objcopy

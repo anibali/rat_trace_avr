@@ -33,7 +33,7 @@ static void check_resync() {
 /**
  * Read the battery voltage. Returns voltage in millivolts.
  */
-uint16_t vbat_measure() {
+static uint16_t vbat_measure() {
   pin_digital_write(Pin_Battery_Test_Enable, Logic_High);
   _delay_ms(5);
   uint16_t adc_val = adc_read(6);
@@ -147,18 +147,18 @@ int main() {
   uint16_t count = 0;
 
   while(1) {
-    proximity = proximity_measure();
+    proximity = proximity_measure_average(9);
 
-    if(++count > 9) {
+    pin_digital_write(Pin_Status_LED,
+      proximity < 30000 ? Logic_Low : Logic_High);
+
+    if(++count > 4) {
       uint32_t secs = rtc_read_seconds();
       uint16_t vbat = vbat_measure();
       printf("Time: %lu, Vbat: %u, Prox: %u\n",
         secs, vbat, proximity);
       count = 0;
     }
-
-    pin_digital_write(Pin_Status_LED,
-      proximity < 30000 ? Logic_Low : Logic_High);
 
     _delay_ms(50);
   }

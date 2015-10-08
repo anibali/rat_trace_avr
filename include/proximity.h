@@ -5,5 +5,6 @@
 
 void proximity_init();
 uint16_t proximity_measure();
+uint16_t proximity_measure_average(uint8_t n_samples);
 
 #endif
