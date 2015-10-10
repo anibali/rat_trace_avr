@@ -10,7 +10,8 @@
 
 typedef enum {
   Chunk_Type_Battery_Level = 1,
-  Chunk_Type_Bait_Level
+  Chunk_Type_Bait_Level,
+  Chunk_Type_Trap_Opened
 } Chunk_Type;
 
 #pragma pack(push,1)
@@ -36,6 +37,10 @@ typedef struct {
   uint16_t bait_id;
   uint16_t level;
 } Chunk_Bait_Level;
+
+typedef struct {
+  uint32_t opened_time;
+} Chunk_Trap_Opened;
 #pragma pack(pop)
 
 // TODO: Resize appropriately, needs to fit biggest report we will send
@@ -86,6 +91,35 @@ void report_add_battery_level_chunk(uint16_t level) {
   Chunk_Battery_Level *chunk = (Chunk_Battery_Level*)report_data_pos;
   chunk->level = level;
   report_data_pos += sizeof(Chunk_Battery_Level);
+}
+
+void report_add_bait_level_chunk(uint16_t bait_id, uint16_t level) {
+  report_add_chunk();
+
+  Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
+  chunk_header->type = Chunk_Type_Bait_Level;
+  clock_get_time(&chunk_header->timestamp);
+  chunk_header->length = sizeof(Chunk_Bait_Level);
+  report_data_pos += sizeof(Report_Chunk_Header);
+
+  Chunk_Bait_Level *chunk = (Chunk_Bait_Level*)report_data_pos;
+  chunk->bait_id = bait_id;
+  chunk->level = level;
+  report_data_pos += sizeof(Chunk_Bait_Level);
+}
+
+void report_add_trap_opened_chunk(uint32_t opened_time) {
+  report_add_chunk();
+
+  Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
+  chunk_header->type = Chunk_Type_Trap_Opened;
+  clock_get_time(&chunk_header->timestamp);
+  chunk_header->length = sizeof(Chunk_Trap_Opened);
+  report_data_pos += sizeof(Report_Chunk_Header);
+
+  Chunk_Trap_Opened *chunk = (Chunk_Trap_Opened*)report_data_pos;
+  chunk->opened_time = opened_time;
+  report_data_pos += sizeof(Chunk_Trap_Opened);
 }
 
 // NOTE: Wifi must be connected

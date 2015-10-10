@@ -58,27 +58,28 @@ static void init() {
   // Enable interrupts
   sei();
 
+#ifdef _DEBUG
   // Use software serial for stdout and stdin (debugging purposes)
   softserial_init();
   stdout = &softserial_output;
   stdin  = &softserial_input;
 
+  printf("\n\nCompiled at: %s, %s\n", __TIME__, __DATE__);
+#endif
+
   sleep_init();
   uart_init();
   i2c_init();
   rtc_init();
-  proximity_init();
-  wifi_init(&uart_output, &uart_input, uart_available);
-  report_init();
-
-  printf("\n\nCompiled at: %s, %s\n", __TIME__, __DATE__);
-  _delay_ms(100); // Give debug message time to send
+  //wifi_init(&uart_output, &uart_input, uart_available);
 
   //wifi_connect();
 
   //check_resync();
 
   adc_init();
+  proximity_init();
+  report_init();
 
   //wifi_disable();
 }
@@ -87,52 +88,80 @@ static void run() {
   bool msg_waiting = false;
   const uint8_t max_iterations = 16;
   uint8_t iterations = 0;
-  uint16_t distance_sum = 0;
+  uint16_t distance_avg = 0;
+
+  bool was_opened = false;
+  uint32_t opened_time = 0;
 
   while(1) {
-    bool do_send = msg_waiting && wifi_is_connected();
+    ++iterations;
+
+    printf("Iteration %2d/%2d\n", iterations, max_iterations);
+
+    bool do_send = msg_waiting;// && wifi_is_connected();
 
     if(do_send) {
       msg_waiting = false;
 
-      report_send();
+      //report_send();
       report_new();
     }
 
-    distance_sum += 0;
+    distance_avg += proximity_measure_average(9) / max_iterations;
 
-    ++iterations;
+    uint16_t als = als_measure();
 
-    uint32_t secs = clock_get_time();
-    printf("Secs: %ld\n", secs);
+    if(als > 50) {
+      if(opened_time == 0) {
+        opened_time = clock_get_time();
+        was_opened = true;
+      }
+      pin_digital_write(Pin_Status_LED, Logic_Low);
+    } else {
+      if(was_opened == false) {
+        opened_time = 0;
+      }
+      pin_digital_write(Pin_Status_LED, Logic_High);
+    }
 
     if(iterations >= max_iterations) {
-      uint16_t distance_avg = distance_sum / iterations;
-      printf("Avg distance: %u\n", distance_avg);
+      int16_t percentage = 100 - (distance_avg - 44000u) / 150;
+      if(distance_avg < 44000u) {
+        percentage = 100;
+      } else if(percentage < 0) {
+        percentage = 0;
+      }
 
-      // if(distance_avg < 300) {
-      //   if(!msg_waiting) {
-      //     wifi_enable();
-      //     msg_waiting = true;
-      //   }
-      // }
+      printf("Bait percentage: %u\n", percentage);
+      report_add_bait_level_chunk(1, percentage);
 
-      iterations = 0;
-      distance_sum = 0;
+      if(!msg_waiting) {
+        //wifi_enable();
+        msg_waiting = true;
+      }
 
       uint16_t vbat = vbat_measure();
       printf("Vbat = %d mV\n", vbat);
       report_add_battery_level_chunk(vbat);
+
+      if(was_opened) {
+        printf("Trap opened at %d\n", opened_time);
+        report_add_trap_opened_chunk(opened_time);
+      }
+
+      iterations = 0;
+      distance_avg = 0;
+      was_opened = false;
     }
 
     if(do_send) {
-      wifi_wait_for_send();
-      check_resync();
-      wifi_disable();
+      //wifi_wait_for_send();
+      //check_resync();
+      //wifi_disable();
     }
 
     // Give GPIOs time to change, etc
-    _delay_ms(500);
+    _delay_ms(200);
     // Sleep
     sleep_now();
   }
@@ -140,29 +169,7 @@ static void run() {
 
 int main() {
   init();
-  //run();
-
-  ////
-  uint16_t proximity;
-  uint16_t count = 0;
-
-  while(1) {
-    proximity = proximity_measure_average(9);
-
-    pin_digital_write(Pin_Status_LED,
-      proximity < 30000 ? Logic_Low : Logic_High);
-
-    if(++count > 4) {
-      uint32_t secs = rtc_read_seconds();
-      uint16_t vbat = vbat_measure();
-      printf("Time: %lu, Vbat: %u, Prox: %u\n",
-        secs, vbat, proximity);
-      count = 0;
-    }
-
-    _delay_ms(50);
-  }
-  ////
+  run();
 
   return 0;
 }

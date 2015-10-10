@@ -2,6 +2,7 @@
 
 #include <avr/io.h>
 #include <util/delay.h>
+#include <stdio.h>
 
 #include "i2c.h"
 #include "util.h"
@@ -23,7 +24,9 @@ typedef enum {
 
 #define MAX_PROX_SAMPLES 31
 
+#define ALS_DATA_RDY  6
 #define PROX_DATA_RDY 5
+#define ALS_OD        4
 #define PROX_OD       3
 
 static inline uint8_t vcnl_read(uint8_t reg) {
@@ -66,16 +69,13 @@ void proximity_init() {
  * Take a proximity measurement. Returns distance in micrometres.
  */
 uint16_t proximity_measure() {
-  uint8_t data;
-  uint16_t proximity;
-
   vcnl_write(VCNL4000_Reg_Command, _BV(PROX_OD));
 
   do {
     _delay_ms(1);
   } while(!(vcnl_read(VCNL4000_Reg_Command) & _BV(PROX_DATA_RDY)));
 
-  proximity = vcnl_read(VCNL4000_Reg_Proximity_Result_High);
+  uint16_t proximity = vcnl_read(VCNL4000_Reg_Proximity_Result_High);
   proximity <<= 8;
   proximity |= vcnl_read(VCNL4000_Reg_Proximity_Result_Low);
 
@@ -98,4 +98,18 @@ uint16_t proximity_measure_average(uint8_t n_samples) {
   sort(proximities, n_samples);
 
   return proximities[n_samples / 2];
+}
+
+uint16_t als_measure() {
+  vcnl_write(VCNL4000_Reg_Command, _BV(ALS_OD));
+
+  do {
+    _delay_ms(1);
+  } while(!(vcnl_read(VCNL4000_Reg_Command) & _BV(ALS_DATA_RDY)));
+
+  uint16_t als = vcnl_read(VCNL4000_Reg_Ambient_Result_High);
+  als <<= 8;
+  als |= vcnl_read(VCNL4000_Reg_Ambient_Result_Low);
+
+  return als;
 }

@@ -9,6 +9,7 @@
 
 uint32_t swap_endian(uint32_t val);
 uint16_t sqrt_u32(uint32_t x);
+void sort(uint16_t *array, int length);
 
 void sleep_init();
 void sleep_now();
