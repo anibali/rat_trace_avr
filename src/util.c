@@ -22,16 +22,18 @@ uint16_t sqrt_u32(uint32_t x) {
   return result;
 }
 
+/**
+ * Sorts an array of integers in ascending order.
+ * Current implementation is insertion sort
+ */
 void sort(uint16_t *array, int length) {
-  // Bubble sort
-  for(int i = 0; i < length - 1; ++i) {
-    for(int j = 0; j < length - (i + 1); ++j) {
-      if(array[j] > array[j+1]) {
-        // Swap values
-        array[j]    = array[j] ^ array[j+1];
-        array[j+1]  = array[j] ^ array[j+1];
-        array[j]    = array[j] ^ array[j+1];
-      }
+  for(int i = 1; i < length; ++i) {
+    int j = i;
+    while(j > 0 && array[j - 1] > array[j]) {
+      uint16_t tmp = array[j];
+      array[j] = array[j - 1];
+      array[j - 1] = tmp;
+      --j;
     }
   }
 }
