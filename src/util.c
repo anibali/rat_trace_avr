@@ -1,5 +1,8 @@
 #include "util.h"
 
+#include <avr/wdt.h>
+#include <avr/interrupt.h>
+
 uint32_t swap_endian(uint32_t val) {
   return
     ((val & 0xFF      ) << 24 ) |
@@ -38,22 +41,29 @@ void sort(uint16_t *array, int length) {
   }
 }
 
+ISR(WDT_vect) {
+  // Disable WDT
+  wdt_disable();
+}
+
 void sleep_init() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-
-  MCUSR &= ~_BV(WDRF);
-  WDTCSR |= _BV(WDCE) | _BV(WDE);
-  //WDTCSR = _BV(WDP2); // 0.25 secs
-  WDTCSR = _BV(WDP2) | _BV(WDP1); // 1.0 secs
-  WDTCSR |= _BV(WDIE);
 }
 
 void sleep_now() {
-  sleep_enable();
+  // Set WDT to wake us up after 1 second
+  wdt_enable(WDTO_1S);
+  WDTCSR |= _BV(WDIE);
+
+  // Disable all modules
   power_all_disable();
 
-  sleep_mode();
-
+  cli();
+  sleep_enable();
+  sei();
+  sleep_cpu();
   sleep_disable();
+
+  // Enable all modules after wake
   power_all_enable();
 }

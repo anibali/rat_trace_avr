@@ -1,7 +1,6 @@
 #include <stdio.h>
 
 #include <avr/io.h>
-#include <avr/interrupt.h>
 #include <util/delay.h>
 #include <util/atomic.h>
 
@@ -16,8 +15,6 @@
 #include "clock.h"
 #include "i2c.h"
 #include "proximity.h"
-
-EMPTY_INTERRUPT(WDT_vect);
 
 #ifdef _DEBUG
 volatile uint16_t millis = 0;
