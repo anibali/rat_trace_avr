@@ -63,6 +63,9 @@ void proximity_init() {
   // Set IR LED current (current = value * 10mA)
   // NOTE: Linearization calculation depends on this value
   vcnl_write(VCNL4000_Reg_LED_Current, 15);
+
+  // Continuous conversion for ambient light
+  vcnl_write(VCNL4000_Reg_Ambient_Param, 0x88 | 0x05);
 }
 
 /**

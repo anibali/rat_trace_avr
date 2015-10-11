@@ -3,6 +3,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 
 #include "util.h"
 #include "uart.h"
@@ -17,6 +18,13 @@
 #include "proximity.h"
 
 EMPTY_INTERRUPT(WDT_vect);
+
+#ifdef _DEBUG
+volatile uint16_t millis = 0;
+ISR(TIMER2_COMPA_vect) {
+  ++millis;
+}
+#endif
 
 /**
  * Check how long it's been since the last resync, and perform a resync
@@ -64,6 +72,14 @@ static void init() {
   stdout = &softserial_output;
   stdin  = &softserial_input;
 
+  // Prescale of 32, clear count on compare match
+  TCCR2A = 0;
+  TCCR2B = _BV(WGM21) | _BV(CS21) | _BV(CS20);
+  // Set compare value for every ms
+  OCR2A = F_CPU / (1000 * 32) - 1;
+  // Enable Timer 2 compare interrupt
+  TIMSK2 |= _BV(OCIE2A);
+
   printf("\n\nCompiled at: %s, %s\n", __TIME__, __DATE__);
 #endif
 
@@ -90,13 +106,19 @@ static void run() {
   uint8_t iterations = 0;
   uint16_t distance_avg = 0;
 
-  bool was_opened = false;
+  bool unreported_open = false;
   uint32_t opened_time = 0;
 
   while(1) {
     ++iterations;
 
+#ifdef _DEBUG
     printf("Iteration %2d/%2d\n", iterations, max_iterations);
+
+    ATOMIC_BLOCK(ATOMIC_FORCEON) {
+      millis = 0;
+    }
+#endif
 
     bool do_send = msg_waiting;// && wifi_is_connected();
 
@@ -107,22 +129,26 @@ static void run() {
       report_new();
     }
 
-    distance_avg += proximity_measure_average(9) / max_iterations;
+    uint16_t proximity = proximity_measure_average(5);
+    // EMA with alpha = 0.75
+    distance_avg = (proximity - (proximity >> 2)) + (distance_avg >> 2);
 
-    uint16_t als = als_measure();
+    if(!unreported_open) {
+      uint16_t als = als_measure();
 
-    if(als > 50) {
-      if(opened_time == 0) {
-        opened_time = clock_get_time();
-        was_opened = true;
-      }
-      pin_digital_write(Pin_Status_LED, Logic_Low);
-    } else {
-      if(was_opened == false) {
+      if(als > 115) {
+        if(opened_time == 0) {
+          opened_time = clock_get_time();
+          unreported_open = true;
+        }
+      } else {
         opened_time = 0;
       }
-      pin_digital_write(Pin_Status_LED, Logic_High);
     }
+
+#ifdef _DEBUG
+    pin_digital_write(Pin_Status_LED, !unreported_open);
+#endif
 
     if(iterations >= max_iterations) {
       int16_t percentage = 100 - (distance_avg - 44000u) / 150;
@@ -144,14 +170,13 @@ static void run() {
       printf("Vbat = %d mV\n", vbat);
       report_add_battery_level_chunk(vbat);
 
-      if(was_opened) {
+      if(unreported_open) {
         printf("Trap opened at %d\n", opened_time);
         report_add_trap_opened_chunk(opened_time);
+        unreported_open = false;
       }
 
       iterations = 0;
-      distance_avg = 0;
-      was_opened = false;
     }
 
     if(do_send) {
@@ -161,7 +186,12 @@ static void run() {
     }
 
     // Give GPIOs time to change, etc
-    _delay_ms(200);
+    //_delay_ms(200);
+
+#ifdef _DEBUG
+    printf("Processed for %d ms\n", millis);
+#endif
+
     // Sleep
     sleep_now();
   }
