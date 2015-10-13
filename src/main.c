@@ -84,17 +84,17 @@ static void init() {
   uart_init();
   i2c_init();
   rtc_init();
-  //wifi_init(&uart_output, &uart_input, uart_available);
+  wifi_init(&uart_output, &uart_input, uart_available);
 
-  //wifi_connect();
+  wifi_connect();
 
-  //check_resync();
+  check_resync();
 
   adc_init();
   proximity_init();
   report_init();
 
-  //wifi_disable();
+  wifi_disable();
 }
 
 static void run() {
@@ -117,12 +117,12 @@ static void run() {
     }
 #endif
 
-    bool do_send = msg_waiting;// && wifi_is_connected();
+    bool do_send = msg_waiting && wifi_is_connected();
 
     if(do_send) {
       msg_waiting = false;
 
-      //report_send();
+      report_send();
       report_new();
     }
 
@@ -159,7 +159,7 @@ static void run() {
       report_add_bait_level_chunk(1, percentage);
 
       if(!msg_waiting) {
-        //wifi_enable();
+        wifi_enable();
         msg_waiting = true;
       }
 
@@ -177,9 +177,9 @@ static void run() {
     }
 
     if(do_send) {
-      //wifi_wait_for_send();
+      wifi_wait_for_send();
       //check_resync();
-      //wifi_disable();
+      wifi_disable();
     }
 
     // Give GPIOs time to change, etc
