@@ -84,7 +84,7 @@ void report_add_battery_level_chunk(uint16_t level) {
 
   Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
   chunk_header->type = Chunk_Type_Battery_Level;
-  clock_get_time(&chunk_header->timestamp);
+  chunk_header->timestamp = clock_get_time();
   chunk_header->length = sizeof(Chunk_Battery_Level);
   report_data_pos += sizeof(Report_Chunk_Header);
 
@@ -98,7 +98,7 @@ void report_add_bait_level_chunk(uint16_t bait_id, uint16_t level) {
 
   Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
   chunk_header->type = Chunk_Type_Bait_Level;
-  clock_get_time(&chunk_header->timestamp);
+  chunk_header->timestamp = clock_get_time();
   chunk_header->length = sizeof(Chunk_Bait_Level);
   report_data_pos += sizeof(Report_Chunk_Header);
 
@@ -113,7 +113,7 @@ void report_add_trap_opened_chunk(uint32_t opened_time) {
 
   Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
   chunk_header->type = Chunk_Type_Trap_Opened;
-  clock_get_time(&chunk_header->timestamp);
+  chunk_header->timestamp = clock_get_time();
   chunk_header->length = sizeof(Chunk_Trap_Opened);
   report_data_pos += sizeof(Report_Chunk_Header);
 
@@ -124,7 +124,7 @@ void report_add_trap_opened_chunk(uint32_t opened_time) {
 
 // NOTE: Wifi must be connected
 void report_send() {
-  clock_get_time(&report_header->send_time);
+  report_header->send_time = clock_get_time();
 
   wifi_sendn(report_data, report_data_pos - report_data);
 }
