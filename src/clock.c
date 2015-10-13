@@ -43,3 +43,8 @@ inline void clock_set_base_time(uint32_t secs) {
 uint32_t clock_get_time() {
   return rtc_read_seconds() + clock_get_base_time();
 }
+
+bool clock_should_resync() {
+  uint32_t base_time = clock_get_base_time();
+  return base_time == 0 || rtc_read_seconds() > 4 * DAYS_TO_SECS;
+}

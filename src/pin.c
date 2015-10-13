@@ -61,8 +61,7 @@ void pin_register_all() {
 
   REGISTER_PIN(Pin_Debug_Out, Port_C, 2);
 
-  // TODO: Check whether enabling more bits in PCICR than needed wastes power
-  PCICR |= _BV(PCIE0) | _BV(PCIE1) | _BV(PCIE2);
+  PCICR |= _BV(PCIE0)/* | _BV(PCIE1) | _BV(PCIE2)*/;
 }
 
 void pin_set_direction(Pin pin, Pin_Direction direction) {

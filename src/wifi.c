@@ -79,7 +79,8 @@ bool wifi_is_connected() {
   while(serial_available()) fgetc(serial_input);
 
   fputs_P(AT_CWJAPq, serial_output);
-  _delay_ms(200);
+
+  _delay_ms(50);
 
   while(!connected && serial_available()) {
     fgets(line, ARRAYSIZE(line), serial_input);
@@ -98,17 +99,17 @@ void wifi_connect() {
   printf_P(PSTR("[WIFI] Connecting...\n"));
 
   wifi_enable();
-  _delay_ms(100);
+  _delay_ms(50);
 
   // Reset wireless
   fputs_P(AT_RST, serial_output);
-  _delay_ms(100);
+  _delay_ms(50);
   while(serial_available()) fgetc(serial_input);
 
   wifi_repeat_until_ok("AT\r\n");
 
   fputs_P(AT_CWMODE_1, serial_output);
-  _delay_ms(100);
+  _delay_ms(50);
   print_response();
 
   fprintf_P(serial_output, AT_CWJAP, WIFI_SSID, WIFI_PASS);
@@ -145,7 +146,7 @@ void wifi_send(const char *message) {
   wifi_sendn(message, strlen(message));
 }
 
-static bool wifi_is_send_ok() {
+bool wifi_is_send_ok() {
   char line[32];
   bool send_ok = false;
 
@@ -166,7 +167,7 @@ bool wifi_wait_for_send() {
       successful_send = true;
       break;
     }
-    _delay_ms(200);
+    _delay_ms(100);
   }
 
   //while(serial_available()) fgetc(serial_input);

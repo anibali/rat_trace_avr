@@ -16,24 +16,19 @@
 #include "i2c.h"
 #include "proximity.h"
 
+typedef enum {
+  Comm_State_Idle,
+  Comm_State_Connecting,
+  Comm_State_Sending
+} Comm_State;
+Comm_State comm_state = Comm_State_Idle;
+
 #ifdef _DEBUG
 volatile uint16_t millis = 0;
 ISR(TIMER2_COMPA_vect) {
   ++millis;
 }
 #endif
-
-/**
- * Check how long it's been since the last resync, and perform a resync
- * if it's been too long.
- */
-static void check_resync() {
-  uint32_t base_time = clock_get_base_time();
-
-  if(base_time == 0 || clock_get_time() - base_time > 1 * DAYS_TO_SECS) {
-    clock_resync();
-  }
-}
 
 /**
  * Read the battery voltage. Returns voltage in millivolts.
@@ -88,7 +83,9 @@ static void init() {
 
   wifi_connect();
 
-  check_resync();
+  if(clock_should_resync()) {
+    clock_resync();
+  }
 
   adc_init();
   proximity_init();
@@ -98,8 +95,7 @@ static void init() {
 }
 
 static void run() {
-  bool msg_waiting = false;
-  const uint8_t max_iterations = 16;
+  const uint8_t max_iterations = 8;
   uint8_t iterations = 0;
   uint16_t distance_avg = 0;
 
@@ -117,13 +113,20 @@ static void run() {
     }
 #endif
 
-    bool do_send = msg_waiting && wifi_is_connected();
-
-    if(do_send) {
-      msg_waiting = false;
-
-      report_send();
-      report_new();
+    switch(comm_state) {
+    case Comm_State_Connecting: {
+      // TODO: Use sensor reading time as delay in wifi_is_connected
+      if(wifi_is_connected()) {
+        report_send();
+        report_new();
+        comm_state = Comm_State_Sending;
+      }
+    } break;
+    case Comm_State_Sending: {
+      // NOTE: We are assuming that message has sent
+      wifi_disable();
+      comm_state = Comm_State_Idle;
+    } break;
     }
 
     uint16_t proximity = proximity_measure_average(5);
@@ -148,6 +151,11 @@ static void run() {
 #endif
 
     if(iterations >= max_iterations) {
+      if(comm_state == Comm_State_Idle) {
+        wifi_enable();
+        comm_state = Comm_State_Connecting;
+      }
+
       int16_t percentage = 100 - (distance_avg - 44000u) / 150;
       if(distance_avg < 44000u) {
         percentage = 100;
@@ -157,11 +165,6 @@ static void run() {
 
       printf("Bait percentage: %u\n", percentage);
       report_add_bait_level_chunk(1, percentage);
-
-      if(!msg_waiting) {
-        wifi_enable();
-        msg_waiting = true;
-      }
 
       uint16_t vbat = vbat_measure();
       printf("Vbat = %d mV\n", vbat);
@@ -175,15 +178,6 @@ static void run() {
 
       iterations = 0;
     }
-
-    if(do_send) {
-      wifi_wait_for_send();
-      //check_resync();
-      wifi_disable();
-    }
-
-    // Give GPIOs time to change, etc
-    //_delay_ms(200);
 
 #ifdef _DEBUG
     printf("Processed for %d ms\n", millis);
