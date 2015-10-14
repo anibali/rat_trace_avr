@@ -4,7 +4,7 @@
 
 void adc_init() {
   // Use AVCC as voltage ref
-  ADMUX |= _BV(REFS0);
+  ADMUX |= _BV(REFS0) | _BV(REFS1);
   // Set prescale of 128
   ADCSRA |= _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
 }

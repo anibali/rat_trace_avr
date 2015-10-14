@@ -39,8 +39,8 @@ static uint16_t vbat_measure() {
   uint16_t adc_val = adc_read(6);
   pin_digital_write(Pin_Battery_Test_Enable, Logic_Low);
 
-  // Vbat (mA) = 18.39 * adc_val
-  uint16_t vbat = (adc_val * UINT32_C(37663)) >> 11;
+  // Vbat (mA) = 6.129 * adc_val
+  uint16_t vbat = (adc_val * UINT32_C(12554)) >> 11;
 
   return vbat;
 }
