@@ -39,8 +39,8 @@ static uint16_t vbat_measure() {
   uint16_t adc_val = adc_read(6);
   pin_digital_write(Pin_Battery_Test_Enable, Logic_Low);
 
-  // Vbat (mA) = 6.4516129 * adc_val
-  uint16_t vbat = (adc_val * UINT32_C(13213)) >> 11;
+  // Vbat (mA) = 18.39 * adc_val
+  uint16_t vbat = (adc_val * UINT32_C(37663)) >> 11;
 
   return vbat;
 }
@@ -79,6 +79,7 @@ static void init() {
   uart_init();
   i2c_init();
   rtc_init();
+
   wifi_init(&uart_output, &uart_input, uart_available);
 
   wifi_connect();
@@ -171,7 +172,7 @@ static void run() {
       report_add_battery_level_chunk(vbat);
 
       if(unreported_open) {
-        printf("Trap opened at %d\n", opened_time);
+        printf("Trap opened at %lu\n", opened_time);
         report_add_trap_opened_chunk(opened_time);
         unreported_open = false;
       }

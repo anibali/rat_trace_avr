@@ -39,7 +39,7 @@ typedef struct {
 } Chunk_Bait_Level;
 
 typedef struct {
-  uint32_t opened_time;
+  uint32_t opened_at;
 } Chunk_Trap_Opened;
 #pragma pack(pop)
 
@@ -108,7 +108,7 @@ void report_add_bait_level_chunk(uint16_t bait_id, uint16_t level) {
   report_data_pos += sizeof(Chunk_Bait_Level);
 }
 
-void report_add_trap_opened_chunk(uint32_t opened_time) {
+void report_add_trap_opened_chunk(uint32_t opened_at) {
   report_add_chunk();
 
   Report_Chunk_Header *chunk_header = (Report_Chunk_Header*)report_data_pos;
@@ -118,7 +118,7 @@ void report_add_trap_opened_chunk(uint32_t opened_time) {
   report_data_pos += sizeof(Report_Chunk_Header);
 
   Chunk_Trap_Opened *chunk = (Chunk_Trap_Opened*)report_data_pos;
-  chunk->opened_time = opened_time;
+  chunk->opened_at = opened_at;
   report_data_pos += sizeof(Chunk_Trap_Opened);
 }
 
