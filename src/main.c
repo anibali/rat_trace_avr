@@ -16,6 +16,9 @@
 #include "i2c.h"
 #include "proximity.h"
 
+// Threshold for the ambient light sensor
+#define ALS_THRESHOLD 50
+
 typedef enum {
   Comm_State_Idle,
   Comm_State_Connecting,
@@ -110,8 +113,6 @@ static void run() {
     ++iterations;
 
 #ifdef _DEBUG
-    printf("Iteration %2d/%2d\n", iterations, max_iterations);
-
     ATOMIC_BLOCK(ATOMIC_FORCEON) {
       millis = 0;
     }
@@ -140,7 +141,7 @@ static void run() {
     if(!unreported_open) {
       uint16_t als = als_measure();
 
-      if(als > 115) {
+      if(als > ALS_THRESHOLD) {
         if(opened_time == 0) {
           opened_time = clock_get_time();
           unreported_open = true;
@@ -183,9 +184,9 @@ static void run() {
       iterations = 0;
     }
 
-#ifdef _DEBUG
-    printf("Processed for %d ms\n", millis);
-#endif
+// #ifdef _DEBUG
+//     printf("Processed for %d ms\n", millis);
+// #endif
 
     // Sleep for 1 second
     sleep_now();
