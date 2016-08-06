@@ -9,7 +9,7 @@
 // and time when that value is written to local memory
 #define RESYNC_COMPENSATION 2
 
-static uint32_t EEMEM base_time = 0;
+static uint32_t base_time = 0;
 
 void clock_resync() {
   printf("[CLOCK] Resyncing time...\n");
@@ -33,11 +33,11 @@ void clock_resync() {
 }
 
 inline uint32_t clock_get_base_time() {
-  return eeprom_read_dword(&base_time);
+  return base_time;
 }
 
 inline void clock_set_base_time(uint32_t secs) {
-  return eeprom_write_dword(&base_time, secs);
+  base_time = secs;
 }
 
 uint32_t clock_get_time() {

@@ -96,8 +96,11 @@ static void init() {
 }
 
 static void run() {
-  const uint8_t max_iterations = 8;
-  uint8_t iterations = 0;
+  // Number of iterations per report sent.
+  // Each iteration takes around 1 second.
+  const uint16_t max_iterations = 6 * 60 * 60;
+
+  uint16_t iterations = 0;
   uint16_t distance_avg = 0;
 
   bool unreported_open = false;
@@ -184,7 +187,7 @@ static void run() {
     printf("Processed for %d ms\n", millis);
 #endif
 
-    // Sleep
+    // Sleep for 1 second
     sleep_now();
   }
 }
